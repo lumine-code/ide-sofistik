@@ -1,0 +1,177 @@
+{
+  "name": "ide-sofistik",
+  "author": "lumine-code",
+  "description": "SOFiSTiK CADINP language-server adapter.",
+  "repository": "https://github.com/lumine-code/ide-sofistik",
+  "bugs": {
+    "url": "https://github.com/lumine-code/ide-sofistik/issues"
+  },
+  "keywords": [
+    "cadinp",
+    "language-server",
+    "lsp",
+    "structural-analysis",
+    "finite-element"
+  ],
+  "version": "1.0.0",
+  "license": "MIT",
+  "engines": {
+    "lumine": "^1.0.0"
+  },
+  "main": "./lib/main",
+  "files": [
+    "lib",
+    "menus",
+    "spec"
+  ],
+  "scripts": {
+    "test": "lumine --test spec",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "consumedServices": {
+    "ide-client": {
+      "versions": {
+        "^1.0.0": "consumeIdeClient"
+      }
+    }
+  },
+  "providedServices": {
+    "background-tips.provider": {
+      "versions": {
+        "1.0.0": "provideBackgroundTips"
+      }
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^18.4.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "vscode-jsonrpc": "^9.0.3"
+  },
+  "configSchema": {
+    "serverPath": {
+      "title": "Server Path",
+      "description": "Absolute path to a server executable or JavaScript entry. Leave empty to use the bundled server.",
+      "type": "string",
+      "default": ""
+    },
+    "notifyWhenMissing": {
+      "title": "Notify When Missing",
+      "description": "Show a notification when the language server cannot be found.",
+      "type": "boolean",
+      "default": true
+    },
+    "features": {
+      "title": "Features",
+      "description": "Which parts of the SOFiSTiK server the editor uses.",
+      "type": "object",
+      "scopeResolution": "grammar",
+      "properties": {
+        "diagnostics": {
+          "title": "Diagnostics",
+          "description": "Report static findings and manually imported calculation diagnostics.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        },
+        "autocomplete": {
+          "title": "Autocomplete",
+          "description": "Offer CADINP records, parameters and values for the project's release.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        },
+        "hover": {
+          "title": "Hover",
+          "description": "Show contextual CADINP command and parameter documentation.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        },
+        "signature": {
+          "title": "Signature",
+          "description": "Show the parameter slots of the current CADINP record.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        },
+        "definition": {
+          "title": "Definition",
+          "description": "Navigate to local declarations and project includes.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        },
+        "references": {
+          "title": "References",
+          "description": "Find references to CADINP declarations in the project.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        },
+        "symbols": {
+          "title": "Symbols",
+          "description": "Serve document and project symbols to navigation features.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        },
+        "semanticTokens": {
+          "title": "Semantic Tokens",
+          "description": "Color schema-recognized enum values over the grammar's highlighting.",
+          "type": "boolean",
+          "scopeResolution": "grammar",
+          "default": true
+        }
+      }
+    },
+    "textCase": {
+      "title": "Completion Case",
+      "description": "Letter case of CADINP vocabulary inserted by completion.",
+      "type": "string",
+      "enum": [
+        {
+          "value": "upper",
+          "description": "Uppercase"
+        },
+        {
+          "value": "lower",
+          "description": "Lowercase"
+        }
+      ],
+      "default": "upper"
+    },
+    "encoding": {
+      "title": "Project Encoding",
+      "description": "Encoding used to read closed project source files. Calculation logs always use UTF-8.",
+      "type": "string",
+      "enum": [
+        {
+          "value": "utf-8",
+          "description": "UTF-8"
+        },
+        {
+          "value": "windows-1250",
+          "description": "Windows-1250"
+        },
+        {
+          "value": "windows-1252",
+          "description": "Windows-1252"
+        },
+        {
+          "value": "iso-8859-1",
+          "description": "ISO-8859-1"
+        }
+      ],
+      "default": "utf-8"
+    }
+  },
+  "dependencies": {
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#3deda963c24572b8f3f5cb04c6aef133fb1c864c"
+  }
+}

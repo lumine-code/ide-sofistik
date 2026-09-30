@@ -1,0 +1,28 @@
+{
+  "menu": [
+    {
+      "label": "Packages",
+      "submenu": [
+        {
+          "label": "IDE SOFiSTiK",
+          "submenu": [
+            {
+              "label": "Read Calculation Diagnostics",
+              "command": "ide-sofistik:read-calculation-diagnostics"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "context-menu": {
+    "lumine-text-editor[data-grammar~=\"sofistik\"]:not([mini])": [
+      { "type": "separator" },
+      {
+        "label": "Read SOFiSTiK Calculation Diagnostics",
+        "command": "ide-sofistik:read-calculation-diagnostics"
+      },
+      { "type": "separator" }
+    ]
+  }
+}

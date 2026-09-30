@@ -1,0 +1,106 @@
+{
+  "name": "ide-sofistik offline feature matrix",
+  "adapter": "ide-sofistik",
+  "project": "fixtures/drive",
+  "file": "fixtures/drive/main.dat",
+  "grammarScope": "source.sofistik",
+  "timeout": 30000,
+  "config": {
+    "ide-sofistik.textCase": "upper",
+    "ide-sofistik.encoding": "utf-8"
+  },
+  "checks": [
+    {
+      "name": "push diagnostics",
+      "kind": "diagnostics",
+      "minLength": 1,
+      "expect": { "type": "array", "minLength": 1 }
+    },
+    {
+      "name": "enum completion",
+      "method": "textDocument/completion",
+      "position": [3, 17],
+      "params": { "context": { "triggerKind": 1 } },
+      "expect": { "path": "*.label", "includes": "FULL" }
+    },
+    {
+      "name": "record parameter hover",
+      "method": "textDocument/hover",
+      "position": [3, 15],
+      "expect": { "path": "contents.value", "matches": "GRP · VAL" }
+    },
+    {
+      "name": "record signature",
+      "method": "textDocument/signatureHelp",
+      "position": [3, 19],
+      "expect": { "path": "signatures.0.label", "matches": "^GRP NO VAL " }
+    },
+    {
+      "name": "definition",
+      "method": "textDocument/definition",
+      "position": [3, 10],
+      "expect": { "path": "*.range.start.line", "includes": 2 }
+    },
+    {
+      "name": "references",
+      "method": "textDocument/references",
+      "position": [3, 10],
+      "params": { "context": { "includeDeclaration": true } },
+      "expect": { "type": "array", "minLength": 2 }
+    },
+    {
+      "name": "document symbols",
+      "method": "textDocument/documentSymbol",
+      "expect": { "path": "*.name", "includes": "size" }
+    },
+    {
+      "name": "workspace symbols",
+      "method": "workspace/symbol",
+      "document": false,
+      "params": { "query": "siz" },
+      "expect": { "path": "*.name", "includes": "size" }
+    },
+    {
+      "name": "enum tokens full",
+      "method": "textDocument/semanticTokens/full",
+      "expect": { "path": "data", "equals": [3, 17, 4, 0, 0] }
+    },
+    {
+      "name": "enum tokens range",
+      "method": "textDocument/semanticTokens/range",
+      "params": {
+        "range": { "start": { "line": 3, "character": 0 }, "end": { "line": 4, "character": 0 } }
+      },
+      "expect": { "path": "data", "equals": [3, 17, 4, 0, 0] }
+    },
+    {
+      "name": "pull diagnostics",
+      "method": "textDocument/diagnostic",
+      "expect": { "path": "items", "minLength": 1 }
+    },
+    {
+      "name": "manual calculation diagnostics",
+      "method": "workspace/executeCommand",
+      "document": false,
+      "params": { "command": "sofistik.readCalculationDiagnostics", "arguments": [{}] },
+      "paramsFrom": { "arguments.0.uri": { "check": "definition", "path": "0.uri" } },
+      "expect": { "path": "count", "equals": 1 }
+    },
+    {
+      "name": "merged calculation diagnostics",
+      "kind": "diagnostics",
+      "minLength": 2,
+      "expect": { "path": "*.source", "includes": "sofistik-calculation" }
+    },
+    {
+      "name": "restart lifecycle",
+      "kind": "restart",
+      "expect": { "path": "current", "equals": "running" }
+    },
+    {
+      "name": "enum tokens after restart",
+      "method": "textDocument/semanticTokens/full",
+      "expect": { "path": "data", "equals": [3, 17, 4, 0, 0] }
+    }
+  ]
+}
