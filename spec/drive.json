@@ -43,10 +43,10 @@
       "expect": { "equals": null }
     },
     {
-      "name": "record hover suppressed",
+      "name": "record keys hover",
       "method": "textDocument/hover",
       "position": [3, 1],
-      "expect": { "equals": null }
+      "expect": { "path": "contents.value", "matches": "^ASE · GRP\\n\\nNO, VAL, FACS, PLC, GAM" }
     },
     {
       "name": "parameter position hover",

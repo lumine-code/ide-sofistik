@@ -88,7 +88,7 @@
         },
         "hover": {
           "title": "Hover",
-          "description": "Show declaration previews, parameter positions and complete enum lists.",
+          "description": "Show record keys, declaration previews, parameter positions and complete enum lists.",
           "type": "boolean",
           "scopeResolution": "grammar",
           "default": true
@@ -172,6 +172,6 @@
     }
   },
   "dependencies": {
-    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#1586fda9610444fc2d9a82bf66c3e14c4c790cfb"
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#446241fcd06e137a912e1d0f7c3487068fee6feb"
   }
 }

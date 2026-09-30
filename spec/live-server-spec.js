@@ -86,6 +86,7 @@ describe("ide-sofistik bundled language server", () => {
     const parameterHover = await client.request("textDocument/hover", positionParams(uri, 3, 15));
     const enumHover = await client.request("textDocument/hover", positionParams(uri, 3, 19));
     for (const result of [parameterHover, enumHover]) {
+      expect(result?.contents.kind).toBe("plaintext");
       expect(result?.contents.value).toContain("ASE · GRP · VAL /2");
       for (const value of ["FULL", "GLIN", "LIN", "LINE", "NO", "OFF", "OLD", "YES"])
         expect(result.contents.value).toMatch(new RegExp(`\\b${value}\\b`));
@@ -99,9 +100,11 @@ describe("ide-sofistik bundled language server", () => {
     client.open(numberUri, numberSource);
     const numberHover = await client.request("textDocument/hover", positionParams(numberUri, 1, 7));
     expect(numberHover?.contents.value).toContain("ASE · GRP · NO /1");
+    const recordHover = await client.request("textDocument/hover", positionParams(uri, 3, 1));
+    expect(recordHover?.contents.kind).toBe("plaintext");
+    expect(recordHover?.contents.value).toMatch(/^ASE · GRP\n\nNO, VAL, FACS, PLC, GAM/);
     for (const [line, character] of [
       [0, 7],
-      [3, 1],
       [3, 12],
       [1, 7],
       [4, 4],
@@ -138,6 +141,54 @@ describe("ide-sofistik bundled language server", () => {
     const report = await client.request("textDocument/diagnostic", { textDocument: { uri } });
     expect(report.kind).toBe("full");
     expect(Array.isArray(report.items)).toBe(true);
+  });
+
+  it("shows complete ordered LC and TRAI record keys from each file's release and language", async () => {
+    const english = path.join(directory, "records-en");
+    const german = path.join(directory, "records-de");
+    const unsupported = path.join(directory, "records-unsupported");
+    for (const child of [english, german, unsupported]) fs.mkdirSync(child);
+    fs.writeFileSync(path.join(english, "sofistik.def"), "SOF_VERSION = 2026\nSOF_LANGUAGE = EN\n");
+    fs.writeFileSync(path.join(german, "sofistik.def"), "SOF_VERSION = 2025\nSOF_LANGUAGE = DE\n");
+    fs.writeFileSync(path.join(unsupported, "sofistik.def"), "SOF_VERSION = 1999\n");
+    const englishSource = "+PROG SOFILOAD\nLC NO 1\nTRAI\nEND\n";
+    const germanSource = "+PROG ASE\nLC\nENDE\n";
+    const englishPath = path.join(english, "main.dat");
+    const germanPath = path.join(german, "main.dat");
+    const unsupportedPath = path.join(unsupported, "main.dat");
+    fs.writeFileSync(englishPath, englishSource);
+    fs.writeFileSync(germanPath, germanSource);
+    fs.writeFileSync(unsupportedPath, englishSource);
+    const englishUri = fileUri(englishPath);
+    const germanUri = fileUri(germanPath);
+    const unsupportedUri = fileUri(unsupportedPath);
+    await client.start();
+    client.open(englishUri, englishSource);
+    client.open(germanUri, germanSource);
+    client.open(unsupportedUri, englishSource);
+    const lcKeys =
+      "NO, TYPE, FACT, FACD, DLX, DLY, DLZ, GAMU, GAMF, PSI0, PSI1, PSI2, PS1S, GAMA, CRIT, CRI1, CRI2, CRI3, TITL";
+    const trainKeys =
+      "TYPE, P1, P2, P3, P4, P5, P6, P7, P8, P9, PFAC, PFAV, WIDT, PHI, PHIS, V, FUGA, XCON, YEX, DIR, DIRT, FRB, DAB, BOGI, FRBO, DABO, WHEE, FRWH, DAWH";
+    for (const [documentUri, line, heading, keys, length] of [
+      [englishUri, 1, "SOFILOAD · LC", lcKeys, 2],
+      [englishUri, 2, "SOFILOAD · TRAI", trainKeys, 4],
+      [germanUri, 1, "ASE · LC", "NR, FAKT, NRG, KVON, KBIS, KDEL, TRAG, PLF", 2],
+      [englishUri, 1, "SOFILOAD · LC", lcKeys, 2],
+    ]) {
+      const result = await client.request(
+        "textDocument/hover",
+        positionParams(documentUri, line, 1),
+      );
+      expect(result?.contents).toEqual({ kind: "plaintext", value: `${heading}\n\n${keys}` });
+      expect(result?.range).toEqual({
+        start: { line, character: 0 },
+        end: { line, character: length },
+      });
+    }
+    expect(
+      await client.request("textDocument/hover", positionParams(unsupportedUri, 1, 1)),
+    ).toBeNull();
   });
 
   it("imports a validated existing log manually and clears imported findings on edits", async () => {
