@@ -2,6 +2,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { pathToFileURL } = require("url");
+const { FileState } = require("lumine");
 
 describe("ide-sofistik adapter", () => {
   let main, directory, edges, editor, adapter, service, session, resolveServer;
@@ -15,7 +16,7 @@ describe("ide-sofistik adapter", () => {
     editor = {
       getGrammar: () => ({ scopeName: "source.sofistik" }),
       getPath: () => path.join(directory, "source.dat"),
-      isModified: () => false,
+      getFileState: () => FileState.UNMODIFIED,
       isDestroyed: () => false,
     };
     session = {
@@ -174,7 +175,7 @@ describe("ide-sofistik adapter", () => {
   for (const [reason, change] of [
     ["wrong grammar", () => (editor.getGrammar = () => ({ scopeName: "source.python" }))],
     ["unsaved", () => (editor.getPath = () => null)],
-    ["modified", () => (editor.isModified = () => true)],
+    ["modified", () => (editor.getFileState = () => FileState.MODIFIED)],
   ]) {
     it(`explains why a ${reason} document cannot import calculation diagnostics`, async () => {
       change();
@@ -197,7 +198,7 @@ describe("ide-sofistik adapter", () => {
 
   it("rechecks changes made while waiting for the server", async () => {
     service.activeSessionsForEditor.and.callFake(async () => {
-      editor.isModified = () => true;
+      editor.getFileState = () => FileState.MODIFIED;
       return [session];
     });
     await main.readCalculationDiagnostics();
@@ -227,6 +228,45 @@ describe("ide-sofistik adapter", () => {
       "Unable to read SOFiSTiK calculation diagnostics",
       { detail: "No calculation log exists", dismissable: true },
     );
+  });
+
+  it("guards calculation-log import through the real TextEditor buffer before and after saving", async () => {
+    await lumine.packages.activatePackage(path.resolve(__dirname, "..", "..", "language-sofistik"));
+    const filePath = path.join(directory, "actual.dat");
+    const source = "+PROG ASE\nEND\n";
+    fs.writeFileSync(filePath, source);
+    const actual = await lumine.workspace.open(filePath);
+    try {
+      actual.setGrammar(lumine.grammars.grammarForScopeName("source.sofistik"));
+      const target = lumine.views.getView(actual);
+      expect(actual.isModified).toBeUndefined();
+      expect(actual.getBuffer().isModified).toBeUndefined();
+      expect(actual.getFileState()).toBe(FileState.UNMODIFIED);
+      await main.readCalculationDiagnostics({ target });
+      expect(service.activeSessionsForEditor).toHaveBeenCalledWith(actual);
+      expect(session.request).toHaveBeenCalledTimes(1);
+
+      session.request.calls.reset();
+      service.activeSessionsForEditor.calls.reset();
+      actual.setText(source + "$ changed\n");
+      expect(actual.getFileState()).toBe(FileState.MODIFIED);
+      await main.readCalculationDiagnostics({ target });
+      expect(service.activeSessionsForEditor).not.toHaveBeenCalled();
+      expect(session.request).not.toHaveBeenCalled();
+      expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
+        "Save changes to the SOFiSTiK file before reading calculation diagnostics.",
+      );
+
+      await actual.save();
+      expect(actual.getFileState()).toBe(FileState.UNMODIFIED);
+      await main.readCalculationDiagnostics({ target });
+      expect(session.request).toHaveBeenCalledOnceWith("workspace/executeCommand", {
+        command: "sofistik.readCalculationDiagnostics",
+        arguments: [{ uri: pathToFileURL(filePath).href }],
+      });
+    } finally {
+      actual.destroy();
+    }
   });
 
   it("registers its workspace command synchronously and removes it on deactivation", async () => {
