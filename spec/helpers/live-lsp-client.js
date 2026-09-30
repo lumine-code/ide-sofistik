@@ -22,6 +22,7 @@ class LiveLspClient {
     this.adapter = adapter;
     this.rootPath = rootPath;
     this.notifications = [];
+    this.registrations = [];
     this.stderr = "";
   }
 
@@ -49,7 +50,10 @@ class LiveLspClient {
         ),
       ),
     );
-    this.connection.onRequest("client/registerCapability", () => null);
+    this.connection.onRequest("client/registerCapability", ({ registrations }) => {
+      this.registrations.push(...registrations);
+      return null;
+    });
     this.connection.onRequest("workspace/semanticTokens/refresh", () => null);
     this.connection.onRequest("workspace/diagnostic/refresh", () => null);
     this.connection.onRequest("window/workDoneProgress/create", () => null);
@@ -62,7 +66,11 @@ class LiveLspClient {
       rootUri,
       workspaceFolders: this.folders,
       capabilities: {
-        workspace: { configuration: true, workspaceFolders: true },
+        workspace: {
+          configuration: true,
+          workspaceFolders: true,
+          didChangeWatchedFiles: { dynamicRegistration: true, relativePatternSupport: true },
+        },
         textDocument: {
           completion: { completionItem: { snippetSupport: true } },
           hover: { contentFormat: ["markdown", "plaintext"] },

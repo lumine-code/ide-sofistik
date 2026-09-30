@@ -214,7 +214,127 @@ describe("ide-sofistik bundled language server", () => {
     }
   });
 
-  it("ignores source headers when the project definition selects the context", async () => {
+  it("keeps adjacent releases and languages separate inside one server process", async () => {
+    fs.writeFileSync(path.join(directory, "sofistik.def"), "SOF_VERSION = 1999\n");
+    const english = path.join(directory, "english");
+    const german = path.join(directory, "german");
+    fs.mkdirSync(english);
+    fs.mkdirSync(german);
+    fs.writeFileSync(path.join(english, "sofistik.def"), "SOF_VERSION = 2026\nSOF_LANGUAGE = EN\n");
+    fs.writeFileSync(
+      path.join(german, "sofistik.def"),
+      "SOF_VERSION = 2025\nSOF_LANGUAGE = DE\nSOF_EDITION = educational\n",
+    );
+    const englishUri = fileUri(path.join(english, "main.dat"));
+    const germanUri = fileUri(path.join(german, "main.dat"));
+    const germanSource = "+PROG ASE\nGRUP NR 1 WERT VOLL\nENDE\n";
+    await client.start();
+    const pid = client.child.pid;
+    client.open(englishUri, SOURCE);
+    client.open(germanUri, germanSource);
+    for (const [documentUri, line, character, expected, absent] of [
+      [englishUri, 3, 4, "NO", "NR"],
+      [germanUri, 1, 5, "NR", "NO"],
+      [englishUri, 3, 4, "NO", "NR"],
+    ]) {
+      const completion = await client.request(
+        "textDocument/completion",
+        positionParams(documentUri, line, character),
+      );
+      const labels = itemsOf(completion).map(({ label }) => label);
+      expect(labels).toContain(expected);
+      expect(labels).not.toContain(absent);
+      const report = await client.request("textDocument/diagnostic", {
+        textDocument: { uri: documentUri },
+      });
+      expect(report.items.some(({ code }) => code === "unsupported-project-version")).toBe(false);
+    }
+    const englishTokens = await client.request("textDocument/semanticTokens/full", {
+      textDocument: { uri: englishUri },
+    });
+    const germanTokens = await client.request("textDocument/semanticTokens/full", {
+      textDocument: { uri: germanUri },
+    });
+    expect(englishTokens.data).toEqual([3, 17, 4, 0, 0]);
+    expect(germanTokens.data).toEqual([1, 15, 4, 0, 0]);
+    expect(client.child.pid).toBe(pid);
+  });
+
+  it("refreshes nested definitions without applying parent definitions to sibling files", async () => {
+    fs.writeFileSync(
+      path.join(directory, "sofistik.def"),
+      "SOF_VERSION = 1999\nSOF_LANGUAGE = DE\n",
+    );
+    const first = path.join(directory, "first");
+    const second = path.join(directory, "second");
+    fs.mkdirSync(first);
+    fs.mkdirSync(second);
+    const definitionPath = path.join(first, "sofistik.def");
+    const definitionUri = fileUri(definitionPath);
+    const firstUri = fileUri(path.join(first, "main.dat"));
+    const secondUri = fileUri(path.join(second, "main.dat"));
+    fs.writeFileSync(definitionPath, "SOF_VERSION = 2026\nSOF_LANGUAGE = EN\n");
+    fs.writeFileSync(path.join(second, "sofistik.def"), "SOF_VERSION = 2026\nSOF_LANGUAGE = EN\n");
+    await client.start();
+    await client.waitFor(
+      () => client.registrations.some(({ method }) => method === "workspace/didChangeWatchedFiles"),
+      "recursive file watcher registration",
+    );
+    const registration = client.registrations.find(
+      ({ method }) => method === "workspace/didChangeWatchedFiles",
+    );
+    expect(
+      registration.registerOptions.watchers.some(
+        ({ globPattern }) =>
+          globPattern.pattern?.startsWith("**/") && globPattern.pattern.includes("def"),
+      ),
+    ).toBe(true);
+    client.open(firstUri, SOURCE);
+    client.open(secondUri, SOURCE);
+    await client.request("textDocument/diagnostic", { textDocument: { uri: firstUri } });
+
+    fs.writeFileSync(definitionPath, "SOF_VERSION = 1998\nSOF_LANGUAGE = DE\n");
+    client.notify("workspace/didChangeWatchedFiles", {
+      changes: [{ uri: definitionUri, type: 2 }],
+    });
+    const unsupported = await client.request("textDocument/diagnostic", {
+      textDocument: { uri: firstUri },
+    });
+    expect(
+      unsupported.items.some(
+        ({ code, message }) => code === "unsupported-project-version" && message.includes("1998"),
+      ),
+    ).toBe(true);
+    const firstTokens = await client.request("textDocument/semanticTokens/full", {
+      textDocument: { uri: firstUri },
+    });
+    const secondTokens = await client.request("textDocument/semanticTokens/full", {
+      textDocument: { uri: secondUri },
+    });
+    expect(firstTokens.data).toEqual([]);
+    expect(secondTokens.data).toEqual([3, 17, 4, 0, 0]);
+
+    const publishedBeforeDeletion = client.diagnostics(firstUri).length;
+    fs.unlinkSync(definitionPath);
+    client.notify("workspace/didChangeWatchedFiles", {
+      changes: [{ uri: definitionUri, type: 3 }],
+    });
+    await client.waitFor(
+      () => client.diagnostics(firstUri).length > publishedBeforeDeletion,
+      "diagnostics after adjacent definition deletion",
+    );
+    const fallback = await client.request("textDocument/diagnostic", {
+      textDocument: { uri: firstUri },
+    });
+    expect(fallback.items.some(({ message }) => /1998|1999/.test(message))).toBe(false);
+    const completion = await client.request(
+      "textDocument/completion",
+      positionParams(firstUri, 3, 4),
+    );
+    expect(itemsOf(completion).map(({ label }) => label)).toContain("NO");
+  });
+
+  it("ignores source headers when the adjacent definition selects the context", async () => {
     await client.start();
     client.open(uri, `@ SOFiSTiK 1999 DE\n${SOURCE}`);
     const tokens = await client.request("textDocument/semanticTokens/full", {

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { pathToFileURL } = require("url");
 
 const until = async (check, label) => {
   const deadline = Date.now() + 15000;
@@ -77,6 +78,35 @@ describe("ide-sofistik client sessions", () => {
     expect(firstSession.rootPath).toBe(firstRoot);
     expect(secondSession.rootPath).toBe(secondRoot);
     expect(service.adaptersForEditor(first).map(({ id }) => id)).toContain("ide-sofistik");
+  });
+
+  it("shares a workspace session while retaining each source directory's release", async () => {
+    lumine.project.setPaths([root]);
+    fs.writeFileSync(path.join(root, "sofistik.def"), "SOF_VERSION = 1998\n");
+    const first = await open(path.join(root, "first"), "2026");
+    const second = await open(path.join(root, "second"), "1999");
+    const firstSession = await sessionFor(first);
+    const secondSession = await sessionFor(second);
+    expect(firstSession).toBe(secondSession);
+    expect(firstSession.rootPath).toBe(root);
+    const firstUri = pathToFileURL(first.getPath()).href;
+    const secondUri = pathToFileURL(second.getPath()).href;
+    const firstTokens = await firstSession.request("textDocument/semanticTokens/full", {
+      textDocument: { uri: firstUri },
+    });
+    const secondTokens = await secondSession.request("textDocument/semanticTokens/full", {
+      textDocument: { uri: secondUri },
+    });
+    expect(firstTokens.data).toEqual([1, 13, 4, 0, 0]);
+    expect(secondTokens.data).toEqual([]);
+    const report = await secondSession.request("textDocument/diagnostic", {
+      textDocument: { uri: secondUri },
+    });
+    expect(
+      report.items.some(
+        ({ code, message }) => code === "unsupported-project-version" && message.includes("1999"),
+      ),
+    ).toBe(true);
   });
 
   it("stops owned sessions when unloaded and reacquires a new package generation", async () => {

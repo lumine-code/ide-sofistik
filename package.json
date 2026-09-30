@@ -81,7 +81,7 @@
         },
         "autocomplete": {
           "title": "Autocomplete",
-          "description": "Offer CADINP records, parameters and values for the project's release.",
+          "description": "Offer CADINP records, parameters and values for the file's release.",
           "type": "boolean",
           "scopeResolution": "grammar",
           "default": true
@@ -172,6 +172,6 @@
     }
   },
   "dependencies": {
-    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#fde0814915b35ed7718d8012243c93154b2c4fda"
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#7bddf99107228a52a09182e84bea3bfa4a9bea87"
   }
 }

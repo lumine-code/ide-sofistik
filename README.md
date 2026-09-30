@@ -8,7 +8,7 @@ SOFiSTiK CADINP language-server adapter.
 
 - **Offline language intelligence**: provides contextual completions, declaration previews, compact parameter positions and complete enum lists on hover, record signatures and static diagnostics without a SOFiSTiK installation.
 - **Project navigation**: supplies document and project symbols, definitions and references through the language-server client.
-- **One project release**: uses the root `sofistik.def`, the newest installed release, or the newest bundled dataset for the entire directory.
+- **Directory declarations**: selects the release, language and edition from `sofistik.def` beside each source file.
 - **Contextual enum colors**: layers recognized enum values over the grammar's highlighting without replacing ordinary syntax colors.
 - **Calculation diagnostics**: imports an existing calculation log on request and clears imported findings when the source changes.
 - **Bundled server**: ships the git-pinned SOFiSTiK language server and its vocabulary data.
@@ -27,7 +27,7 @@ Commands available in `lumine-workspace`:
 
 ## Usage
 
-Open each SOFiSTiK project directory as an editor project root. One server uses one release for all files in that directory. It resolves the release from the root `sofistik.def`, then the newest release under `C:\Program Files\SOFiSTiK`, and finally the newest bundled dataset. A `sofistik.def` can declare `SOF_VERSION = 2026`, `SOF_LANGUAGE = EN` or `DE`, and `SOF_EDITION = professional` or `educational`. Language defaults to English and edition to professional. File headers do not select a release, language or edition. Unsupported releases retain syntax highlighting while release-specific intelligence stays unavailable.
+Place `sofistik.def` alongside the source files it describes. Each saved file resolves its release from that adjacent definition, then the newest release under `C:\Program Files\SOFiSTiK`, and finally the newest bundled dataset. Workspace-root and ancestor definitions do not apply to files in subdirectories, even when the adjacent definition is missing. One server session can serve directories with different declarations. A `sofistik.def` can declare `SOF_VERSION = 2026`, `SOF_LANGUAGE = EN` or `DE`, and `SOF_EDITION = professional` or `educational`. Language defaults to English and edition to professional. File headers do not select a release, language or edition. Unsupported releases retain syntax highlighting while release-specific intelligence stays unavailable.
 
 `autocomplete-sofistik`, `linter-sofistik` and `sofistik-environment` are archived and removed from the install catalogue. Uninstall those packages and use `ide-sofistik` with `ide-client`; keep `autocomplete` and `linter` for the corresponding interfaces. Release, language and edition detection lives in the lightweight `@lumine-code/sofistik-env` library; `sofistik-data` supplies the bundled release fallback. The language grammar continues to own ordinary syntax highlighting and folding, while the language server supplies contextual intelligence through `ide-client`.
 
