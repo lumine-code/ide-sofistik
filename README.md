@@ -11,7 +11,7 @@ SOFiSTiK CADINP language-server adapter.
 - **One project release**: uses the root `sofistik.def`, the newest installed release, or the newest bundled dataset for the entire directory.
 - **Contextual enum colors**: layers recognized enum values over the grammar's highlighting without replacing ordinary syntax colors.
 - **Calculation diagnostics**: imports an existing calculation log on request and clears imported findings when the source changes.
-- **Bundled server**: ships the git-pinned SOFiSTiK language server and its parser and vocabulary dependencies.
+- **Bundled server**: ships the git-pinned SOFiSTiK language server and its vocabulary data.
 
 ## Installation
 
