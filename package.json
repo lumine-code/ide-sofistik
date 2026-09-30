@@ -88,7 +88,7 @@
         },
         "hover": {
           "title": "Hover",
-          "description": "Show contextual CADINP command and parameter documentation.",
+          "description": "Show declaration previews, parameter positions and complete enum lists.",
           "type": "boolean",
           "scopeResolution": "grammar",
           "default": true
@@ -172,6 +172,6 @@
     }
   },
   "dependencies": {
-    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#b2913428d262469d9805439f2a90708dbed5d8fa"
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#8acafeef8461ec41dce7b07436129362088525fb"
   }
 }

@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 const { LiveLspClient, fileUri, positionParams } = require("./helpers/live-lsp-client");
 
-const SOURCE = "+PROG ASE\nHEAD 'Example'\nLET#size 1\nGRP NO #size VAL FULL\nEND\n";
+const SOURCE = "+PROG ASE\nHEAD 'Example'\nLET#size 1\nGRP NO #size VAL FULL\n$ #size\nEND\n";
 const itemsOf = (result) => (Array.isArray(result) ? result : result.items);
 const targetLine = (target) => (target.range ?? target.targetSelectionRange).start.line;
 
@@ -73,8 +73,42 @@ describe("ide-sofistik bundled language server", () => {
 
     const completion = await client.request("textDocument/completion", positionParams(uri, 3, 4));
     expect(itemsOf(completion).some(({ label }) => label.toUpperCase() === "VAL")).toBe(true);
-    const hover = await client.request("textDocument/hover", positionParams(uri, 3, 1));
-    expect(hover?.contents).toBeTruthy();
+    expect(
+      itemsOf(completion)
+        .slice(0, 5)
+        .map(({ label }) => label),
+    ).toEqual(["NO", "VAL", "FACS", "PLC", "GAM"]);
+    const completionOrder = itemsOf(completion).map(({ sortText }) => sortText);
+    expect(completionOrder.every((sortText) => typeof sortText === "string")).toBe(true);
+    expect(completionOrder).toEqual([...completionOrder].sort());
+    const hover = await client.request("textDocument/hover", positionParams(uri, 3, 10));
+    expect(hover?.contents.value).toContain("LET#size 1");
+    const parameterHover = await client.request("textDocument/hover", positionParams(uri, 3, 15));
+    const enumHover = await client.request("textDocument/hover", positionParams(uri, 3, 19));
+    for (const result of [parameterHover, enumHover]) {
+      expect(result?.contents.value).toContain("ASE · GRP · VAL /2");
+      for (const value of ["FULL", "GLIN", "LIN", "LINE", "NO", "OFF", "OLD", "YES"])
+        expect(result.contents.value).toMatch(new RegExp(`\\b${value}\\b`));
+      expect(result.contents.value).not.toContain("Slot");
+      expect(result.contents.value).not.toContain("SOFiSTiK 2026");
+      expect(result.contents.value).not.toContain("type codes");
+    }
+    const numberUri = fileUri(path.join(directory, "numbers.dat"));
+    const numberSource = "+PROG ASE\nGRP NO 1 VAL FULL\nEND\n";
+    fs.writeFileSync(path.join(directory, "numbers.dat"), numberSource);
+    client.open(numberUri, numberSource);
+    const numberHover = await client.request("textDocument/hover", positionParams(numberUri, 1, 7));
+    expect(numberHover?.contents.value).toContain("ASE · GRP · NO /1");
+    for (const [line, character] of [
+      [0, 7],
+      [3, 1],
+      [3, 12],
+      [1, 7],
+      [4, 4],
+    ])
+      expect(
+        await client.request("textDocument/hover", positionParams(uri, line, character)),
+      ).toBeNull();
     const signature = await client.request(
       "textDocument/signatureHelp",
       positionParams(uri, 3, 19),

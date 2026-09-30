@@ -2,6 +2,7 @@
 HEAD 'Example ą😀'
 LET#size 1
 GRP NO #size VAL FULL
+$ #size
 END
 +PROG UNKNOWNMODULE
 END

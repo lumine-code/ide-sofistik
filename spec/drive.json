@@ -24,10 +24,59 @@
       "expect": { "path": "*.label", "includes": "FULL" }
     },
     {
-      "name": "record parameter hover",
+      "name": "parameter source order",
+      "method": "textDocument/completion",
+      "position": [3, 4],
+      "params": { "context": { "triggerKind": 1 } },
+      "expect": { "path": "0.label", "equals": "NO" }
+    },
+    {
+      "name": "variable definition hover",
+      "method": "textDocument/hover",
+      "position": [3, 10],
+      "expect": { "path": "contents.value", "matches": "LET#size 1" }
+    },
+    {
+      "name": "module hover suppressed",
+      "method": "textDocument/hover",
+      "position": [0, 7],
+      "expect": { "equals": null }
+    },
+    {
+      "name": "record hover suppressed",
+      "method": "textDocument/hover",
+      "position": [3, 1],
+      "expect": { "equals": null }
+    },
+    {
+      "name": "parameter position hover",
       "method": "textDocument/hover",
       "position": [3, 15],
-      "expect": { "path": "contents.value", "matches": "GRP · VAL" }
+      "expect": { "path": "contents.value", "matches": "GRP · VAL /2" }
+    },
+    {
+      "name": "enum parameter hover",
+      "method": "textDocument/hover",
+      "position": [3, 19],
+      "expect": { "path": "contents.value", "matches": "GRP · VAL /2" }
+    },
+    {
+      "name": "comment hover suppressed",
+      "method": "textDocument/hover",
+      "position": [4, 4],
+      "expect": { "equals": null }
+    },
+    {
+      "name": "whitespace hover suppressed",
+      "method": "textDocument/hover",
+      "position": [3, 12],
+      "expect": { "equals": null }
+    },
+    {
+      "name": "title hover suppressed",
+      "method": "textDocument/hover",
+      "position": [1, 7],
+      "expect": { "equals": null }
     },
     {
       "name": "record signature",
