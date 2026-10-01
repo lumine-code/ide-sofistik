@@ -2,7 +2,6 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { pathToFileURL } = require("url");
-const { FileState } = require("lumine");
 
 describe("ide-sofistik adapter", () => {
   let main, directory, edges, editor, adapter, service, session, resolveServer;
@@ -16,7 +15,7 @@ describe("ide-sofistik adapter", () => {
     editor = {
       getGrammar: () => ({ scopeName: "source.sofistik" }),
       getPath: () => path.join(directory, "source.dat"),
-      getFileState: () => FileState.UNMODIFIED,
+      getFileState: () => "unmodified",
       isDestroyed: () => false,
     };
     session = {
@@ -175,7 +174,7 @@ describe("ide-sofistik adapter", () => {
   for (const [reason, change] of [
     ["wrong grammar", () => (editor.getGrammar = () => ({ scopeName: "source.python" }))],
     ["unsaved", () => (editor.getPath = () => null)],
-    ["modified", () => (editor.getFileState = () => FileState.MODIFIED)],
+    ["modified", () => (editor.getFileState = () => "modified")],
   ]) {
     it(`explains why a ${reason} document cannot import calculation diagnostics`, async () => {
       change();
@@ -198,7 +197,7 @@ describe("ide-sofistik adapter", () => {
 
   it("rechecks changes made while waiting for the server", async () => {
     service.activeSessionsForEditor.and.callFake(async () => {
-      editor.getFileState = () => FileState.MODIFIED;
+      editor.getFileState = () => "modified";
       return [session];
     });
     await main.readCalculationDiagnostics();
@@ -241,7 +240,7 @@ describe("ide-sofistik adapter", () => {
       const target = lumine.views.getView(actual);
       expect(actual.isModified).toBeUndefined();
       expect(actual.getBuffer().isModified).toBeUndefined();
-      expect(actual.getFileState()).toBe(FileState.UNMODIFIED);
+      expect(actual.getFileState()).toBe("unmodified");
       await main.readCalculationDiagnostics({ target });
       expect(service.activeSessionsForEditor).toHaveBeenCalledWith(actual);
       expect(session.request).toHaveBeenCalledTimes(1);
@@ -249,7 +248,7 @@ describe("ide-sofistik adapter", () => {
       session.request.calls.reset();
       service.activeSessionsForEditor.calls.reset();
       actual.setText(source + "$ changed\n");
-      expect(actual.getFileState()).toBe(FileState.MODIFIED);
+      expect(actual.getFileState()).toBe("modified");
       await main.readCalculationDiagnostics({ target });
       expect(service.activeSessionsForEditor).not.toHaveBeenCalled();
       expect(session.request).not.toHaveBeenCalled();
@@ -258,7 +257,7 @@ describe("ide-sofistik adapter", () => {
       );
 
       await actual.save();
-      expect(actual.getFileState()).toBe(FileState.UNMODIFIED);
+      expect(actual.getFileState()).toBe("unmodified");
       await main.readCalculationDiagnostics({ target });
       expect(session.request).toHaveBeenCalledOnceWith("workspace/executeCommand", {
         command: "sofistik.readCalculationDiagnostics",
