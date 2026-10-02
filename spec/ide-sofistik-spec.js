@@ -43,6 +43,7 @@ describe("ide-sofistik adapter", () => {
     for (const key of ["serverPath", "textCase", "encoding"])
       lumine.config.unset(`ide-sofistik.${key}`);
     await lumine.packages.deactivatePackage("ide-sofistik");
+    await lumine.fileWatchClient.settlePendingTeardown();
     fs.rmSync(directory, { recursive: true, force: true });
   });
 
@@ -230,7 +231,7 @@ describe("ide-sofistik adapter", () => {
   });
 
   it("guards calculation-log import through the real TextEditor buffer before and after saving", async () => {
-    await lumine.packages.activatePackage(path.resolve(__dirname, "..", "..", "language-sofistik"));
+    await lumine.packages.activatePackage("language-sofistik");
     const filePath = path.join(directory, "actual.dat");
     const source = "+PROG ASE\nEND\n";
     fs.writeFileSync(filePath, source);

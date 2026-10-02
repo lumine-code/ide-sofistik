@@ -31,9 +31,7 @@ describe("ide-sofistik client sessions", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "ide-sofistik-sessions-"));
     editors = [];
     for (const name of ["language-sofistik", "ide-client"])
-      await lumine.packages.activatePackage(
-        lumine.packages.resolvePackagePath(name) || path.resolve(__dirname, "../..", name),
-      );
+      await lumine.packages.activatePackage(name);
     await lumine.packages.activatePackage("ide-sofistik");
     service = lumine.packages.getActivePackage("ide-client").mainModule.provideIdeClient();
   });
@@ -44,6 +42,7 @@ describe("ide-sofistik client sessions", () => {
     await lumine.packages.deactivatePackage("ide-client");
     await lumine.packages.deactivatePackage("language-sofistik");
     lumine.project.setPaths(previousPaths);
+    await lumine.fileWatchClient.settlePendingTeardown();
     fs.rmSync(root, { recursive: true, force: true });
   });
 
