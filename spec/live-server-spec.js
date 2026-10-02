@@ -143,6 +143,44 @@ describe("ide-sofistik bundled language server", () => {
     expect(Array.isArray(report.items)).toBe(true);
   });
 
+  it("advances positional GRP slots and leaves quoted enum values to string highlighting", async () => {
+    const records = ["GRP NUMB 57 OFF SPRI", "GRP NUMB 58 OPTI 'OFF' ETYP 'SPRI'"];
+    const source = ["+PROG WING", ...records, "END", ""].join("\n");
+    fs.writeFileSync(path.join(directory, "main.dat"), source);
+    await client.start();
+    client.open(uri, source);
+    const expected = [1, 12, 3, 0, 0, 0, 4, 4, 0, 0];
+    const full = await client.request("textDocument/semanticTokens/full", {
+      textDocument: { uri },
+    });
+    expect(full.data).toEqual(expected);
+    const range = await client.request("textDocument/semanticTokens/range", {
+      textDocument: { uri },
+      range: { start: { line: 1, character: 0 }, end: { line: 3, character: 0 } },
+    });
+    expect(range.data).toEqual(expected);
+    const quotedRange = await client.request("textDocument/semanticTokens/range", {
+      textDocument: { uri },
+      range: { start: { line: 2, character: 0 }, end: { line: 3, character: 0 } },
+    });
+    expect(quotedRange.data).toEqual([]);
+    for (const [index, record] of records.entries()) {
+      for (const [value, parameter, position] of [
+        [index === 0 ? "57" : "58", "NUMB", 1],
+        ["OFF", "OPTI", 2],
+        ["SPRI", "ETYP", 3],
+      ]) {
+        const result = await client.request(
+          "textDocument/hover",
+          positionParams(uri, index + 1, record.indexOf(value) + 1),
+        );
+        expect(result?.contents.value.split("\n")[0]).toBe(
+          `WING · GRP · ${parameter} /${position}`,
+        );
+      }
+    }
+  });
+
   it("shows complete ordered LC and TRAI record keys from each file's release and language", async () => {
     const english = path.join(directory, "records-en");
     const german = path.join(directory, "records-de");

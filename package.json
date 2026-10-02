@@ -127,7 +127,7 @@
         },
         "semanticTokens": {
           "title": "Semantic Tokens",
-          "description": "Color schema-recognized enum values over the grammar's highlighting.",
+          "description": "Color schema-recognized, unquoted enum values over the grammar's highlighting.",
           "type": "boolean",
           "scopeResolution": "grammar",
           "default": true
@@ -176,6 +176,6 @@
     }
   },
   "dependencies": {
-    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#f6649f8699472f9ba83c5b5b54bdde509ce19834"
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#93b195566f49328563f4f3e835ca5430c757a5b1"
   }
 }
