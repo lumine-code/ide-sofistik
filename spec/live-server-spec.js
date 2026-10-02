@@ -181,6 +181,80 @@ describe("ide-sofistik bundled language server", () => {
     }
   });
 
+  it("serves comma alternatives as one GRP slot while advancing the next slot once", async () => {
+    const cases = [
+      {
+        record: "GRP NUMB 31+#grp YES BEAM,GLN SING",
+        tokens: [1, 17, 3, 0, 0, 0, 4, 4, 0, 0, 0, 5, 3, 0, 0, 0, 4, 4, 0, 0],
+      },
+      {
+        record: "GRP NUMB 32+#grp YES, OFF BEAM, GLN SING",
+        tokens: [1, 17, 3, 0, 0, 0, 5, 3, 0, 0, 0, 4, 4, 0, 0, 0, 6, 3, 0, 0, 0, 4, 4, 0, 0],
+      },
+      {
+        record: "GRP NUMB 33+#grp YES BEAM,'GLN' SING",
+        quoted: "GLN",
+        tokens: [1, 17, 3, 0, 0, 0, 4, 4, 0, 0, 0, 11, 4, 0, 0],
+      },
+    ];
+    const source = ["+PROG WING", ...cases.map(({ record }) => record), "END", ""].join("\n");
+    fs.writeFileSync(path.join(directory, "main.dat"), source);
+    await client.start();
+    client.open(uri, source);
+    const full = await client.request("textDocument/semanticTokens/full", {
+      textDocument: { uri },
+    });
+    expect(full.data).toEqual(cases.flatMap(({ tokens }) => tokens));
+    for (const [index, { record, tokens, quoted }] of cases.entries()) {
+      const line = index + 1;
+      const range = await client.request("textDocument/semanticTokens/range", {
+        textDocument: { uri },
+        range: { start: { line, character: 0 }, end: { line: line + 1, character: 0 } },
+      });
+      expect(range.data).toEqual([line, ...tokens.slice(1)]);
+      for (const [value, parameter, activeParameter] of [
+        ["YES", "OPTI", 1],
+        ["OFF", "OPTI", 1],
+        ["BEAM", "ETYP", 2],
+        ["GLN", "ETYP", 2],
+        ["SING", "GDIV", 3],
+      ]) {
+        const start = record.indexOf(value);
+        if (start < 0) continue;
+        const hover = await client.request(
+          "textDocument/hover",
+          positionParams(uri, line, start + 1),
+        );
+        expect(hover?.contents.value.split("\n")[0]).toBe(
+          `WING · GRP · ${parameter} /${activeParameter + 1}`,
+        );
+        const signature = await client.request(
+          "textDocument/signatureHelp",
+          positionParams(uri, line, start + 1),
+        );
+        expect(signature?.activeParameter).toBe(activeParameter);
+        const completion = await client.request(
+          "textDocument/completion",
+          positionParams(uri, line, start + 2),
+        );
+        const item = itemsOf(completion).find(({ label }) => label === value);
+        expect(item?.kind).toBe(20);
+        expect(item?.textEdit.range).toEqual({
+          start: { line, character: start },
+          end: { line, character: start + 2 },
+        });
+        const valueTokens = await client.request("textDocument/semanticTokens/range", {
+          textDocument: { uri },
+          range: {
+            start: { line, character: start },
+            end: { line, character: start + value.length },
+          },
+        });
+        expect(valueTokens.data).toEqual(value === quoted ? [] : [line, start, value.length, 0, 0]);
+      }
+    }
+  });
+
   it("shows complete ordered LC and TRAI record keys from each file's release and language", async () => {
     const english = path.join(directory, "records-en");
     const german = path.join(directory, "records-de");
