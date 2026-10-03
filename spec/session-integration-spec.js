@@ -40,6 +40,7 @@ describe("ide-sofistik client sessions", () => {
     for (const editor of editors) editor.destroy();
     await lumine.packages.deactivatePackage("ide-sofistik");
     await lumine.packages.deactivatePackage("ide-client");
+    await lumine.packages.deactivatePackage("busy-signal");
     await lumine.packages.deactivatePackage("language-sofistik");
     lumine.project.setPaths(previousPaths);
     await lumine.fileWatchClient.settlePendingTeardown();
@@ -62,6 +63,36 @@ describe("ide-sofistik client sessions", () => {
       const sessions = await service.activeSessionsForEditor(editor);
       return sessions.find(({ adapter }) => adapter.id === "ide-sofistik");
     }, "SOFiSTiK session");
+
+  it("shows server indexing through the shared busy service and clears it on completion", async () => {
+    const busyMain = (await lumine.packages.activatePackage("busy-signal")).mainModule;
+    const clientMain = lumine.packages.getActivePackage("ide-client").mainModule;
+    const registry = busyMain.instance.registry;
+    const titles = [];
+    const changes = registry.onDidUpdate(() => {
+      titles.push(...registry.getTilesActive().map(({ title }) => title));
+    });
+    const registration = clientMain.consumeBusySignal(busyMain.provideBusySignal());
+    try {
+      lumine.project.setPaths([root]);
+      const editor = await open(root, "2026");
+      const session = await sessionFor(editor);
+      await session.request("workspace/symbol", { query: "" });
+      const prefix = "SOFiSTiK Language Server: Indexing CADINP project";
+      await until(() => titles.includes(`${prefix} (Indexed 1 file)`), "indexed file count");
+      expect(titles).toContain(`${prefix} (Discovering files)`);
+      expect(session.progressTitles.size).toBe(0);
+      expect(registry.getTilesActive().some(({ title }) => title.startsWith(prefix))).toBe(false);
+      expect(session.state).toBe("running");
+      await lumine.packages.deactivatePackage("ide-sofistik");
+      await until(() => session.state === "stopped", "server teardown");
+      expect(registry.getTilesActive()).toEqual([]);
+      expect(registry.providers.size).toBe(0);
+    } finally {
+      registration.dispose();
+      changes.dispose();
+    }
+  });
 
   it("routes two project roots to separate server sessions", async () => {
     const firstRoot = path.join(root, "first");

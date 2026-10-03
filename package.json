@@ -32,7 +32,8 @@
   },
   "specPackages": [
     "language-sofistik",
-    "ide-client"
+    "ide-client",
+    "busy-signal"
   ],
   "consumedServices": {
     "ide-client": {
@@ -176,6 +177,6 @@
     }
   },
   "dependencies": {
-    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#b860fea9971c8a68a05ef5b5a1a34dbcaa876b4b"
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#e00f6cffd2c1cc070015ec27553515bd3b356edc"
   }
 }

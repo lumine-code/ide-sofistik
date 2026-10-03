@@ -43,6 +43,31 @@ describe("ide-sofistik bundled language server", () => {
     fs.rmSync(directory, { recursive: true, force: true });
   });
 
+  it("reports completed indexing from the default git-pinned server launch", async () => {
+    await client.start();
+    expect(client.child.spawnargs).toContain(
+      require.resolve("@lumine-code/sofistik-language-server/bin/cli.js"),
+    );
+    await client.request("workspace/symbol", { query: "size" });
+    const progress = await client.waitFor(() => {
+      const values = client.notifications
+        .filter(({ method }) => method === "$/progress")
+        .map(({ params }) => params);
+      return values.some(({ value }) => value.kind === "end") ? values : null;
+    }, "completed indexing progress");
+    expect(client.progressRequests.length).toBe(1);
+    expect(progress.every(({ token }) => token === client.progressRequests[0].token)).toBe(true);
+    expect(progress[0].value).toEqual({
+      kind: "begin",
+      title: "Indexing CADINP project",
+      message: "Discovering files",
+      cancellable: false,
+    });
+    expect(progress.at(-2).value).toEqual({ kind: "report", message: "Indexed 1 file" });
+    expect(progress.at(-1).value).toEqual({ kind: "end" });
+    expect(progress.filter(({ value }) => value.kind === "end").length).toBe(1);
+  });
+
   it("serves every advertised intelligence capability without a SOFiSTiK installation", async () => {
     const { capabilities } = await client.start();
     for (const name of [

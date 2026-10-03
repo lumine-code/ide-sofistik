@@ -23,6 +23,7 @@ class LiveLspClient {
     this.rootPath = rootPath;
     this.notifications = [];
     this.registrations = [];
+    this.progressRequests = [];
     this.stderr = "";
   }
 
@@ -43,6 +44,9 @@ class LiveLspClient {
       new StreamMessageWriter(this.child.stdin),
     );
     this.connection.onNotification((method, params) => this.notifications.push({ method, params }));
+    this.connection.onNotification("$/progress", (params) =>
+      this.notifications.push({ method: "$/progress", params }),
+    );
     this.connection.onRequest("workspace/configuration", ({ items }) =>
       Promise.all(
         items.map(({ section, scopeUri }) =>
@@ -56,7 +60,10 @@ class LiveLspClient {
     });
     this.connection.onRequest("workspace/semanticTokens/refresh", () => null);
     this.connection.onRequest("workspace/diagnostic/refresh", () => null);
-    this.connection.onRequest("window/workDoneProgress/create", () => null);
+    this.connection.onRequest("window/workDoneProgress/create", (params) => {
+      this.progressRequests.push(params);
+      return null;
+    });
     this.connection.onRequest("workspace/workspaceFolders", () => this.folders);
     this.connection.listen();
     const rootUri = pathToFileURL(this.rootPath).href;
@@ -66,6 +73,7 @@ class LiveLspClient {
       rootUri,
       workspaceFolders: this.folders,
       capabilities: {
+        window: { workDoneProgress: true },
         workspace: {
           configuration: true,
           workspaceFolders: true,
