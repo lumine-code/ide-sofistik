@@ -37,6 +37,8 @@ Live static findings select the offending variable, value or record in the origi
 
 Native `IF` and `LOOP` structure is checked after preprocessing, including controls split across includes. Additional release-specific checks cover ASE dead-load and STEP settings, CSA Takeda coefficients, SOFIMSHC boundary bedding and FEABENCH task and moving-load configuration. Runtime expressions and unresolved context remain unknown.
 
+G310 highlights repeated decimal points in numeric atoms such as `1.00.0`, including macro-generated values. Native field prefixes keep number-like names, titles, paths and quoted text out of this check. Use `! noqa: G310` on the source line or `NOQA = G310` in `sofistik.def` to suppress it.
+
 Each feature can be switched off per grammar in the package settings. Turning semantic tokens off leaves the grammar's own colors visible. The adapter provides no formatting, rename or code actions.
 
 ## Services

@@ -173,4 +173,28 @@ describe("ide-sofistik bundled CADINP linter", () => {
     expect(corrected.items.some(({ code }) => code === "G309")).toBe(false);
     expect(client.stderr).toBe("");
   });
+
+  it("reports malformed numbers precisely and clears them after correction", async () => {
+    client.open(uri, "+PROG SOFIMSHC\nSPT NO 1 X 1.00.0 Y 2\nEND\n");
+    const initial = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    const issue = initial.items.find(({ code }) => code === "G310");
+    expect(issue.range).toEqual({
+      start: { line: 1, character: 11 },
+      end: { line: 1, character: 17 },
+    });
+    client.change(uri, "+PROG SOFIMSHC\nSPT NO 1 X 1.0 Y 2\nEND\n", 2);
+    const corrected = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    expect(corrected.items.some(({ code }) => code === "G310")).toBe(false);
+    expect(client.stderr).toBe("");
+  });
+
+  it("uses bundled native prefixes to distinguish numeric factors from textual names", async () => {
+    client.open(uri, "+PROG SOFIMSHC\nGAX ID axis TYPE AXIS\nGAXV NAME 1.00.0 VAL 1\nEND\n");
+    const named = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    expect(named.items.some(({ code }) => code === "G310")).toBe(false);
+    client.change(uri, "+PROG SOFILOAD\nLC NO 1 FACT 1.00.0\nEND\n", 2);
+    const numeric = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    expect(numeric.items.some(({ code }) => code === "G310")).toBe(true);
+    expect(client.stderr).toBe("");
+  });
 });
