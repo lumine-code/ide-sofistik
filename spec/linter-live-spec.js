@@ -182,6 +182,8 @@ describe("ide-sofistik bundled CADINP linter", () => {
       start: { line: 1, character: 11 },
       end: { line: 1, character: 17 },
     });
+    expect(issue.relatedInformation).toBeUndefined();
+    expect(issue.data.programAnchor.range.start.line).toBe(0);
     client.change(uri, "+PROG SOFIMSHC\nSPT NO 1 X 1.0 Y 2\nEND\n", 2);
     const corrected = await client.request("textDocument/diagnostic", { textDocument: { uri } });
     expect(corrected.items.some(({ code }) => code === "G310")).toBe(false);
