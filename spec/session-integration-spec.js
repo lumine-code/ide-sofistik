@@ -38,6 +38,7 @@ describe("ide-sofistik client sessions", () => {
 
   afterEach(async () => {
     for (const editor of editors) editor.destroy();
+    await lumine.packages.deactivatePackage("symbol");
     await lumine.packages.deactivatePackage("ide-sofistik");
     await lumine.packages.deactivatePackage("ide-client");
     await lumine.packages.deactivatePackage("busy-signal");
@@ -63,6 +64,71 @@ describe("ide-sofistik client sessions", () => {
       const sessions = await service.activeSessionsForEditor(editor);
       return sessions.find(({ adapter }) => adapter.id === "ide-sofistik");
     }, "SOFiSTiK session");
+
+  const symbolTreeFor = (registry, editor, names) =>
+    until(async () => {
+      const tree = await registry.getFileSymbolTree(editor);
+      return tree && JSON.stringify(tree.map(({ name }) => name)) === JSON.stringify(names)
+        ? tree
+        : null;
+    }, "SOFiSTiK symbol tree");
+
+  it("shares hierarchical program and command symbols through the hub after unsaved edits", async () => {
+    lumine.project.setPaths([root]);
+    const editor = await open(root, "2026");
+    const source =
+      "+PROG SOFIMSHA\nHEAD Example\nNODE 1 X 0 Y 0\n     2 X 1 Y 0\nNODE 3 X 2 Y 0\nEND\n+PROG ASE\nGRP NO 1 VAL FULL\nEND\n";
+    editor.setText(source);
+    await sessionFor(editor);
+    const main = (await lumine.packages.activatePackage("symbol")).mainModule;
+    const registry = main.provideSymbolRegistry();
+    const tree = await symbolTreeFor(registry, editor, ["SOFIMSHA", "ASE"]);
+    expect(tree[0].tag).toBe("module");
+    expect(tree[0].range.serialize()).toEqual([
+      [0, 0],
+      [6, 0],
+    ]);
+    expect(tree[0].children.map(({ name }) => name)).toEqual(["HEAD", "NODE", "NODE"]);
+    expect(tree[0].children[1].tag).toBe("method");
+    expect(tree[0].children[1].range.serialize()).toEqual([
+      [2, 0],
+      [4, 0],
+    ]);
+    expect(tree[0].children[2].position.toArray()).toEqual([4, 0]);
+    expect(tree[1].children.map(({ name }) => name)).toEqual(["GRP"]);
+    expect(tree.every(({ providerName }) => providerName === "Language Server")).toBe(true);
+    const flat = await registry.getFileSymbols(editor);
+    expect(flat.filter(({ name }) => name === "NODE").map(({ context }) => context)).toEqual([
+      "SOFIMSHA",
+      "SOFIMSHA",
+    ]);
+    expect(registry.peekFileSymbolTree(editor)).toBe(tree);
+
+    editor.setText("+PROG AQUA\nHEAD Changed\nCONC NO 1 C 30\nEND\n");
+    const changed = await symbolTreeFor(registry, editor, ["AQUA"]);
+    expect(changed[0].children.map(({ name }) => name)).toEqual(["HEAD", "CONC"]);
+    expect(changed[0].range.serialize()).toEqual([
+      [0, 0],
+      [4, 0],
+    ]);
+    expect(fs.readFileSync(editor.getPath(), "utf8")).toBe("+PROG ASE\nGRP NO 1 VAL FULL\nEND\n");
+    expect((await registry.getFileSymbols(editor)).some(({ name }) => name === "NODE")).toBe(false);
+  });
+
+  it("provides hierarchical symbols for a new untitled buffer", async () => {
+    lumine.project.setPaths([root]);
+    const editor = await lumine.workspace.open();
+    editors.push(editor);
+    editor.setGrammar(lumine.grammars.grammarForScopeName("source.sofistik"));
+    editor.setText("+PROG AQUA\nHEAD Untitled\nCONC NO 1 C 30\nEND\n");
+    await sessionFor(editor);
+    const main = (await lumine.packages.activatePackage("symbol")).mainModule;
+    const tree = await symbolTreeFor(main.provideSymbolRegistry(), editor, ["AQUA"]);
+    expect(editor.getPath()).toBeUndefined();
+    expect(tree[0].children.map(({ name }) => name)).toEqual(["HEAD", "CONC"]);
+    expect(tree[0].children[1].position.toArray()).toEqual([2, 0]);
+    expect(tree[0].providerName).toBe("Language Server");
+  });
 
   it("shows server indexing through the shared busy service and clears it on completion", async () => {
     const busyMain = (await lumine.packages.activatePackage("busy-signal")).mainModule;

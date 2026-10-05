@@ -7,7 +7,7 @@ SOFiSTiK CADINP language-server adapter.
 ## Features
 
 - **Offline language intelligence**: provides contextual completions, ordered record keys, declaration previews, compact parameter positions and complete enum lists on hover, record signatures and static diagnostics without a SOFiSTiK installation.
-- **Project navigation**: supplies document and project symbols, definitions and references through the language-server client.
+- **Project navigation**: supplies document symbols arranged as programs and commands, project symbols, definitions and references through the language-server client.
 - **Directory declarations**: selects the release, language and edition from `sofistik.def` beside each source file.
 - **Contextual enum colors**: colors recognized, unquoted enum values while quoted values keep their string colors.
 - **Calculation diagnostics**: imports an existing calculation log on request and clears imported findings when the source changes.

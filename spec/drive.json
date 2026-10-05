@@ -100,7 +100,12 @@
     {
       "name": "document symbols",
       "method": "textDocument/documentSymbol",
-      "expect": { "path": "*.name", "includes": "size" }
+      "expect": { "path": "*.name", "includes": "ASE" }
+    },
+    {
+      "name": "document command symbols",
+      "method": "textDocument/documentSymbol",
+      "expect": { "path": "0.children.*.name", "includes": "GRP" }
     },
     {
       "name": "workspace symbols",
