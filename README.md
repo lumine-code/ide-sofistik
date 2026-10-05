@@ -35,6 +35,8 @@ The calculation-diagnostics command reads existing compiler output; it never lau
 
 Live static findings select the offending variable, value or record in the original source, including open include buffers. Preprocessor substitutions select their complete use site and link their definitions; reusable blocks select the failing invocation and link the exact body location. Original program headers remain available as related locations and `noqa` suppression anchors. ERR-derived rules follow the selected release and use stable module codes such as `G101`, `SL001` and `AQB001`.
 
+Native `IF` and `LOOP` structure is checked after preprocessing, including controls split across includes. Additional release-specific checks cover ASE dead-load and STEP settings, CSA Takeda coefficients, SOFIMSHC boundary bedding and FEABENCH task and moving-load configuration. Runtime expressions and unresolved context remain unknown.
+
 Each feature can be switched off per grammar in the package settings. Turning semantic tokens off leaves the grammar's own colors visible. The adapter provides no formatting, rename or code actions.
 
 ## Services

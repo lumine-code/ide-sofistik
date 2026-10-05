@@ -364,7 +364,18 @@ describe("ide-sofistik bundled language server", () => {
       "diagnostics after edit",
     );
     expect(changed.diagnostics.some(({ source }) => source === "sofistik-calculation")).toBe(false);
-    expect(changed.diagnostics.some(({ source }) => source === "sofistik")).toBe(true);
+    const linted = await client.waitFor(
+      () =>
+        client
+          .diagnostics(uri)
+          .find(
+            ({ version, diagnostics }) =>
+              version === 2 && diagnostics.some(({ code }) => code === "G305"),
+          ),
+      "expanded control diagnostics after edit",
+    );
+    expect(linted.diagnostics.some(({ source }) => source === "sofistik-linter")).toBe(true);
+    expect(linted.diagnostics.some(({ source }) => source === "sofistik-calculation")).toBe(false);
     const beforeClose = client.diagnostics(uri).length;
     client.closeDocument(uri);
     await client.waitFor(

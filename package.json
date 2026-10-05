@@ -178,6 +178,6 @@
     }
   },
   "dependencies": {
-    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#c45a2efa287bd7b4edef8a4f73ecfd7a7ad1ac9f"
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#08207c50872fc833ddda72f8ebc80c4dfd37cff4"
   }
 }

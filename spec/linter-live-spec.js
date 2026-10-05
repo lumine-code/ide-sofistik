@@ -137,4 +137,40 @@ describe("ide-sofistik bundled CADINP linter", () => {
     expect(corrected.relatedDocuments[included].items).toEqual([]);
     expect(client.stderr).toBe("");
   });
+
+  it("checks new CSA coefficient bounds only in their verified release", async () => {
+    const definition = path.join(directory, "sofistik.def");
+    fs.writeFileSync(definition, "SOF_VERSION = 2025\n");
+    client.notify("workspace/didChangeWatchedFiles", {
+      changes: [{ uri: fileUri(definition), type: 2 }],
+    });
+    client.open(uri, "+PROG CSA\nTASK TYPE PHNG\nEXPO OPT SMAT MTYP MTAK TAY 1.2\nEND\n");
+    const old = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    expect(old.items.some(({ code }) => code === "CS005")).toBe(false);
+    fs.writeFileSync(definition, "SOF_VERSION = 2026\n");
+    client.notify("workspace/didChangeWatchedFiles", {
+      changes: [{ uri: fileUri(definition), type: 2 }],
+    });
+    const current = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    const issue = current.items.find(({ code }) => code === "CS005");
+    expect(issue.range).toEqual({
+      start: { line: 2, character: 28 },
+      end: { line: 2, character: 31 },
+    });
+    expect(client.stderr).toBe("");
+  });
+
+  it("reports an unclosed native IF at its opener and clears it after correction", async () => {
+    client.open(uri, "+PROG TEMPLATE\nIF 1\nLET#a 1\nEND\n");
+    const initial = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    const issue = initial.items.find(({ code }) => code === "G309");
+    expect(issue.range).toEqual({
+      start: { line: 1, character: 0 },
+      end: { line: 1, character: 2 },
+    });
+    client.change(uri, "+PROG TEMPLATE\nIF 1\nLET#a 1\nENDIF\nEND\n", 2);
+    const corrected = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    expect(corrected.items.some(({ code }) => code === "G309")).toBe(false);
+    expect(client.stderr).toBe("");
+  });
 });
