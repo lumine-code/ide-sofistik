@@ -435,7 +435,7 @@ describe("ide-sofistik bundled language server", () => {
       const report = await client.request("textDocument/diagnostic", {
         textDocument: { uri: documentUri },
       });
-      expect(report.items.some(({ code }) => code === "unsupported-project-version")).toBe(false);
+      expect(report.items.some(({ code }) => code === "G302")).toBe(false);
     }
     const englishTokens = await client.request("textDocument/semanticTokens/full", {
       textDocument: { uri: englishUri },
@@ -489,9 +489,7 @@ describe("ide-sofistik bundled language server", () => {
       textDocument: { uri: firstUri },
     });
     expect(
-      unsupported.items.some(
-        ({ code, message }) => code === "unsupported-project-version" && message.includes("1998"),
-      ),
+      unsupported.items.some(({ code, message }) => code === "G302" && message.includes("1998")),
     ).toBe(true);
     const firstTokens = await client.request("textDocument/semanticTokens/full", {
       textDocument: { uri: firstUri },

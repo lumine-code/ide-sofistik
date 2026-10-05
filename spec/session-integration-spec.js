@@ -201,9 +201,7 @@ describe("ide-sofistik client sessions", () => {
       textDocument: { uri: secondUri },
     });
     expect(
-      report.items.some(
-        ({ code, message }) => code === "unsupported-project-version" && message.includes("1999"),
-      ),
+      report.items.some(({ code, message }) => code === "G302" && message.includes("1999")),
     ).toBe(true);
   });
 
