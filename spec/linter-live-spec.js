@@ -41,13 +41,17 @@ describe("ide-sofistik bundled CADINP linter", () => {
     fs.rmSync(directory, { recursive: true, force: true });
   });
 
-  it("expands generated commands and reports stable Ruff-style rules at their program", async () => {
+  it("expands generated commands and reports stable Ruff-style rules at the offending command", async () => {
     client.open(uri, "#DEFINE suffix=mb\n+PROG MAXIMA\nLC 1\nco$(suffix) 1\nEND\n");
     const result = await client.request("textDocument/diagnostic", { textDocument: { uri } });
     const findings = result.items.filter((item) => item.source === "sofistik-linter");
     expect(findings.length).toBe(1);
     expect(findings[0].code).toBe("MX001");
-    expect(findings[0].range.start.line).toBe(1);
+    expect(findings[0].range).toEqual({
+      start: { line: 2, character: 0 },
+      end: { line: 2, character: 2 },
+    });
+    expect(findings[0].data.programAnchor.range.start.line).toBe(1);
     expect(findings[0].data.recordOrigin.range.start.line).toBe(2);
     client.change(uri, "#DEFINE suffix=mb\n+PROG MAXIMA\nco$(suffix) 1\nLC 1\nEND\n", 2);
     const corrected = await client.request("textDocument/diagnostic", { textDocument: { uri } });
@@ -61,7 +65,10 @@ describe("ide-sofistik bundled CADINP linter", () => {
     const findings = result.items.filter((item) => item.source === "sofistik-linter");
     expect(findings.length).toBe(1);
     expect(findings[0].code).toBe("G101");
-    expect(findings[0].range.start.line).toBe(0);
+    expect(findings[0].range).toEqual({
+      start: { line: 2, character: 7 },
+      end: { line: 2, character: 15 },
+    });
     expect(findings[0].data.recordOrigin.range.start.line).toBe(2);
     expect(client.stderr).toBe("");
   });
@@ -97,6 +104,37 @@ describe("ide-sofistik bundled CADINP linter", () => {
     client.change(uri, "+PROG BDK\nCTRL SFAC 0.5*2\nEND\n", 2);
     const expression = await client.request("textDocument/diagnostic", { textDocument: { uri } });
     expect(expression.items.some(({ code }) => code === "BD001")).toBe(false);
+    expect(client.stderr).toBe("");
+  });
+
+  it("selects a scalar use site and exposes its definition through related locations", async () => {
+    client.open(uri, "#DEFINE humidity = 110\n+PROG AQB\nEIGE RH $(humidity)\nEND\n");
+    const result = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    const issue = result.items.find(({ data }) => data?.rule === "aqb-creep-humidity-range");
+    expect(issue.range).toEqual({
+      start: { line: 2, character: 8 },
+      end: { line: 2, character: 19 },
+    });
+    expect(issue.relatedInformation.some(({ location }) => location.range.start.line === 0)).toBe(
+      true,
+    );
+    expect(client.stderr).toBe("");
+  });
+
+  it("receives included-file findings and their retraction through related document reports", async () => {
+    const included = fileUri(path.join(directory, "values.inc"));
+    fs.writeFileSync(path.join(directory, "values.inc"), "LET#a #missing\n");
+    client.open(uri, '+PROG TEMPLATE\n#INCLUDE "values.inc"\nEND\n');
+    const result = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    const findings = result.relatedDocuments[included].items.filter(({ code }) => code === "G101");
+    expect(findings.length).toBe(1);
+    expect(findings[0].range).toEqual({
+      start: { line: 0, character: 6 },
+      end: { line: 0, character: 14 },
+    });
+    client.change(uri, "+PROG TEMPLATE\nEND\n", 2);
+    const corrected = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    expect(corrected.relatedDocuments[included].items).toEqual([]);
     expect(client.stderr).toBe("");
   });
 });

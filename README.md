@@ -33,6 +33,8 @@ Place `sofistik.def` alongside the source files it describes. Each saved file re
 
 The calculation-diagnostics command reads existing compiler output; it never launches a calculation and does not import or watch logs automatically. Save the source first, then run the command. Static and imported diagnostics appear together in the linter, and editing the source removes the imported findings until they are read again.
 
+Live static findings select the offending variable, value or record in the original source, including open include buffers. Preprocessor substitutions select their complete use site and link their definitions; reusable blocks select the failing invocation and link the exact body location. Original program headers remain available as related locations and `noqa` suppression anchors. ERR-derived rules follow the selected release and use stable module codes such as `G101`, `SL001` and `AQB001`.
+
 Each feature can be switched off per grammar in the package settings. Turning semantic tokens off leaves the grammar's own colors visible. The adapter provides no formatting, rename or code actions.
 
 ## Services
