@@ -96,7 +96,9 @@ describe("ide-sofistik client sessions", () => {
     ]);
     expect(tree[0].children[2].position.toArray()).toEqual([4, 0]);
     expect(tree[1].children.map(({ name }) => name)).toEqual(["GRP"]);
-    expect(tree.every(({ providerName }) => providerName === "Language Server")).toBe(true);
+    expect(tree.every(({ providerName }) => providerName === "SOFiSTiK Language Server")).toBe(
+      true,
+    );
     const flat = await registry.getFileSymbols(editor);
     expect(flat.filter(({ name }) => name === "NODE").map(({ context }) => context)).toEqual([
       "SOFIMSHA",
@@ -127,7 +129,7 @@ describe("ide-sofistik client sessions", () => {
     expect(editor.getPath()).toBeUndefined();
     expect(tree[0].children.map(({ name }) => name)).toEqual(["HEAD", "CONC"]);
     expect(tree[0].children[1].position.toArray()).toEqual([2, 0]);
-    expect(tree[0].providerName).toBe("Language Server");
+    expect(tree[0].providerName).toBe("SOFiSTiK Language Server");
   });
 
   it("shows server indexing through the shared busy service and clears it on completion", async () => {
