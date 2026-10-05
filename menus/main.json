@@ -14,15 +14,5 @@
         }
       ]
     }
-  ],
-  "context-menu": {
-    "lumine-text-editor[data-grammar~=\"sofistik\"]:not([mini])": [
-      { "type": "separator" },
-      {
-        "label": "Read SOFiSTiK Calculation Diagnostics",
-        "command": "ide-sofistik:read-calculation-diagnostics"
-      },
-      { "type": "separator" }
-    ]
-  }
+  ]
 }
