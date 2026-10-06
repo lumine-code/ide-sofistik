@@ -15,7 +15,9 @@ SOFiSTiK CADINP language-server adapter.
 
 ## Installation
 
-To install `ide-sofistik` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/ide-sofistik`.
+To install `ide-sofistik` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/ide-sofistik~master`.
+
+The catalogue and this command select the current preproduction branch, which uses the `ide` hub.
 
 Install `ide` and `language-sofistik`. Add `autocomplete`, `hover`, `linter`, `symbol`, `find-references` and `semantic-tokens` for the corresponding interfaces. The server runs with the editor's Node runtime and needs no separately installed interpreter or SOFiSTiK programs.
 
