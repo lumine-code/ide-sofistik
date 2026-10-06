@@ -69,15 +69,10 @@ describe("ide-sofistik adapter", () => {
 
   it("forwards completion and file-reading settings without installation settings", () => {
     lumine.config.set("ide-sofistik.textCase", "lower");
-    expect(adapter.getWorkspaceConfiguration("sofistik")).toEqual({
-      textCase: "lower",
-      encoding: "utf-8",
-    });
     expect(adapter.getSettings()).toEqual({
-      sofistik: adapter.getWorkspaceConfiguration("sofistik"),
+      sofistik: { textCase: "lower", encoding: "utf-8" },
     });
-    expect(adapter.getWorkspaceConfiguration()).toEqual(adapter.getSettings());
-    expect(adapter.getWorkspaceConfiguration("unknown")).toBeUndefined();
+    expect(adapter.getWorkspaceConfiguration).toBeUndefined();
   });
 
   it("uses uppercase completions and UTF-8 by default", () => {
