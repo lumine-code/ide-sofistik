@@ -38,7 +38,7 @@ describe("ide-sofistik adapter", () => {
     };
     spyOn(lumine.workspace, "getActiveTextEditor").and.returnValue(editor);
     spyOn(lumine.notifications, "addWarning");
-    edges.push(main.consumeIdeClient(service));
+    edges.push(main.consumeIde(service));
   });
 
   afterEach(async () => {
@@ -60,14 +60,14 @@ describe("ide-sofistik adapter", () => {
     const registration = service.registerAdapter.calls.mostRecent().returnValue;
     edges[0].dispose();
     expect(registration.dispose).toHaveBeenCalledTimes(1);
-    expect(main.ideClient).toBeNull();
+    expect(main.ide).toBeNull();
   });
 
   it("keeps a replacement client edge when an older provider disappears", () => {
     const replacement = { ...service, registerAdapter: () => ({ dispose() {} }) };
-    edges.push(main.consumeIdeClient(replacement));
+    edges.push(main.consumeIde(replacement));
     edges[0].dispose();
-    expect(main.ideClient).toBe(replacement);
+    expect(main.ide).toBe(replacement);
   });
 
   it("forwards completion and file-reading settings without installation settings", () => {

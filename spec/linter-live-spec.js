@@ -22,7 +22,7 @@ describe("ide-sofistik bundled CADINP linter", () => {
     fs.writeFileSync(path.join(directory, "sofistik.def"), "SOF_VERSION = 2026\n");
     uri = fileUri(path.join(directory, "main.dat"));
     let adapter;
-    edge = main.consumeIdeClient({
+    edge = main.consumeIde({
       registerAdapter(value) {
         adapter = value;
         return { dispose() {} };

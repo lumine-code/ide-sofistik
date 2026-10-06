@@ -26,7 +26,7 @@ describe("ide-sofistik bundled language server", () => {
     fs.writeFileSync(path.join(directory, "sofistik.def"), "SOF_VERSION = 2026\n");
     fs.writeFileSync(path.join(directory, "main.dat"), SOURCE);
     uri = fileUri(path.join(directory, "main.dat"));
-    edge = main.consumeIdeClient({
+    edge = main.consumeIde({
       registerAdapter(value) {
         adapter = value;
         return { dispose() {} };

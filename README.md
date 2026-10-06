@@ -17,7 +17,7 @@ SOFiSTiK CADINP language-server adapter.
 
 To install `ide-sofistik` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/ide-sofistik`.
 
-Install `ide-client` and `language-sofistik`. Add `autocomplete`, `hover`, `linter`, `symbol`, `find-references` and `semantic-tokens` for the corresponding interfaces. The server runs with the editor's Node runtime and needs no separately installed interpreter or SOFiSTiK programs.
+Install `ide` and `language-sofistik`. Add `autocomplete`, `hover`, `linter`, `symbol`, `find-references` and `semantic-tokens` for the corresponding interfaces. The server runs with the editor's Node runtime and needs no separately installed interpreter or SOFiSTiK programs.
 
 ## Commands
 
@@ -29,7 +29,7 @@ Commands available in `lumine-workspace`:
 
 Place `sofistik.def` alongside the source files it describes. Each saved file resolves its release from that adjacent definition, then the newest release under `C:\Program Files\SOFiSTiK`, and finally the newest bundled dataset. Workspace-root and ancestor definitions do not apply to files in subdirectories, even when the adjacent definition is missing. One server session can serve directories with different declarations. A `sofistik.def` can declare `SOF_VERSION = 2026`, `SOF_LANGUAGE = EN` or `DE`, and `SOF_EDITION = professional` or `educational`. Language defaults to English and edition to professional. File headers do not select a release, language or edition. Unsupported releases retain syntax highlighting while release-specific intelligence stays unavailable.
 
-`autocomplete-sofistik`, `linter-sofistik` and `sofistik-environment` are archived and removed from the install catalogue. Uninstall those packages and use `ide-sofistik` with `ide-client`; keep `autocomplete` and `linter` for the corresponding interfaces. Release, language and edition detection lives in the lightweight `@lumine-code/sofistik-env` library; `sofistik-data` supplies the bundled release fallback. The language grammar continues to own ordinary syntax highlighting and folding, while the language server supplies contextual intelligence through `ide-client`.
+`autocomplete-sofistik`, `linter-sofistik` and `sofistik-environment` are archived and removed from the install catalogue. Uninstall those packages and use `ide-sofistik` with `ide`; keep `autocomplete` and `linter` for the corresponding interfaces. Release, language and edition detection lives in the lightweight `@lumine-code/sofistik-env` library; `sofistik-data` supplies the bundled release fallback. The language grammar continues to own ordinary syntax highlighting and folding, while the language server supplies contextual intelligence through `ide`.
 
 The calculation-diagnostics command reads existing compiler output; it never launches a calculation and does not import or watch logs automatically. Save the source first, then run the command. Static and imported diagnostics appear together in the linter, and editing the source removes the imported findings until they are read again.
 
@@ -43,7 +43,7 @@ Each feature can be switched off per grammar in the package settings. Turning se
 
 ## Services
 
-- `ide-client`: consumed to register and reach the SOFiSTiK language-server sessions.
+- `ide`: consumed to register and reach the SOFiSTiK language-server sessions.
 - `background-tips.provider`: provided to background-tips to explain manual calculation-diagnostics import.
 
 ## Contributing

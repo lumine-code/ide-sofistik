@@ -13,7 +13,7 @@ const until = async (check, label) => {
   throw new Error(`${label} timed out`);
 };
 
-describe("ide-sofistik client sessions", () => {
+describe("ide-sofistik IDE sessions", () => {
   let service, root, editors, previousPaths, timeout;
 
   beforeAll(() => {
@@ -30,17 +30,16 @@ describe("ide-sofistik client sessions", () => {
     previousPaths = lumine.project.getPaths();
     root = fs.mkdtempSync(path.join(os.tmpdir(), "ide-sofistik-sessions-"));
     editors = [];
-    for (const name of ["language-sofistik", "ide-client"])
-      await lumine.packages.activatePackage(name);
+    for (const name of ["language-sofistik", "ide"]) await lumine.packages.activatePackage(name);
     await lumine.packages.activatePackage("ide-sofistik");
-    service = lumine.packages.getActivePackage("ide-client").mainModule.provideIdeClient();
+    service = lumine.packages.getActivePackage("ide").mainModule.provideIde();
   });
 
   afterEach(async () => {
     for (const editor of editors) editor.destroy();
     await lumine.packages.deactivatePackage("symbol");
     await lumine.packages.deactivatePackage("ide-sofistik");
-    await lumine.packages.deactivatePackage("ide-client");
+    await lumine.packages.deactivatePackage("ide");
     await lumine.packages.deactivatePackage("busy-signal");
     await lumine.packages.deactivatePackage("language-sofistik");
     lumine.project.setPaths(previousPaths);
@@ -134,13 +133,13 @@ describe("ide-sofistik client sessions", () => {
 
   it("shows server indexing through the shared busy service and clears it on completion", async () => {
     const busyMain = (await lumine.packages.activatePackage("busy-signal")).mainModule;
-    const clientMain = lumine.packages.getActivePackage("ide-client").mainModule;
+    const ideMain = lumine.packages.getActivePackage("ide").mainModule;
     const registry = busyMain.instance.registry;
     const titles = [];
     const changes = registry.onDidUpdate(() => {
       titles.push(...registry.getTilesActive().map(({ title }) => title));
     });
-    const registration = clientMain.consumeBusySignal(busyMain.provideBusySignal());
+    const registration = ideMain.consumeBusySignal(busyMain.provideBusySignal());
     try {
       lumine.project.setPaths([root]);
       const editor = await open(root, "2026");
