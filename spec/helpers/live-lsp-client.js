@@ -1,3 +1,4 @@
+const { serverContext } = require("./server-context");
 const { spawn } = require("child_process");
 const path = require("path");
 const { configurationContext, workspaceConfiguration } = require(
@@ -39,7 +40,7 @@ class LiveLspClient {
   }
 
   async start() {
-    const launch = await this.adapter.resolveServer({ rootPath: this.rootPath });
+    const launch = await this.adapter.resolveServer(serverContext({ rootPath: this.rootPath }));
     this.launch = launch;
     if (!launch) throw new Error("SOFiSTiK server entry is unavailable");
     this.child = spawn(launch.command, launch.args, {

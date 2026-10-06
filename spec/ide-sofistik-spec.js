@@ -1,3 +1,4 @@
+const { serverContext } = require("./helpers/server-context");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -9,7 +10,9 @@ describe("ide-sofistik adapter", () => {
   beforeEach(async () => {
     const pkg = await lumine.packages.activatePackage("ide-sofistik");
     main = pkg.mainModule;
-    resolveServer = require("../lib/server").resolveServer;
+    const resolver = require("../lib/server").resolveServer;
+    resolveServer = (configuredPath) =>
+      resolver(serverContext({ rootPath: directory }), configuredPath);
     directory = fs.mkdtempSync(path.join(os.tmpdir(), "ide-sofistik-spec-"));
     edges = [];
     editor = {
@@ -86,7 +89,7 @@ describe("ide-sofistik adapter", () => {
     const entry = path.join(directory, "server.js");
     fs.writeFileSync(entry, "");
     lumine.config.set("ide-sofistik.serverPath", entry);
-    const launch = await adapter.resolveServer({ rootPath: directory });
+    const launch = await adapter.resolveServer(serverContext({ rootPath: directory }));
     expect(launch.command).toBe(process.execPath);
     expect(launch.args).toEqual([entry, "--stdio"]);
     expect(launch.env.ELECTRON_RUN_AS_NODE).toBe("1");
@@ -100,9 +103,7 @@ describe("ide-sofistik adapter", () => {
     expect(launch.args).toEqual(["--stdio"]);
     expect(launch.env).toBeUndefined();
     await expectAsync(resolveServer(path.join(directory, "missing.js"))).toBeRejected();
-    await expectAsync(resolveServer("relative/server.js")).toBeRejectedWithError(
-      "Server Path must be an absolute path.",
-    );
+    await expectAsync(resolveServer("relative/server.js")).toBeRejectedWithError(/absolute path/);
   });
 
   it("resolves the git-pinned bundled entry without a separately installed Node", async () => {
@@ -273,5 +274,13 @@ describe("ide-sofistik adapter", () => {
     const current = await lumine.packages.activatePackage("ide-sofistik");
     main = current.mainModule;
     expect(names()).toContain("ide-sofistik:read-calculation-diagnostics");
+  });
+});
+
+describe("ide-sofistik shared server resolution", () => {
+  it("preserves an unavailable selection as null", async () => {
+    const { resolveServer: resolveWithContext } = require("../lib/server");
+    const resolver = { select: jasmine.createSpy("select").and.resolveTo(null) };
+    expect(await resolveWithContext({ rootPath: __dirname, resolver }, "")).toBeNull();
   });
 });
