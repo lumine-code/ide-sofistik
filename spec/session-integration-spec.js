@@ -131,6 +131,53 @@ describe("ide-sofistik IDE sessions", () => {
     expect(tree[0].providerName).toBe("SOFiSTiK Language Server");
   });
 
+  it("opens parsed code from unsaved source and include edits using the source definition", async () => {
+    lumine.project.setPaths([root]);
+    const editor = await open(root, "2026");
+    const original = fs.readFileSync(editor.getPath(), "utf8");
+    fs.writeFileSync(path.join(root, "sofistik.def"), "SOF_VERSION = 2026\nHUMIDITY = 65\n");
+    const includedPath = path.join(root, "humidity.inc");
+    fs.writeFileSync(includedPath, "EIGE RH 110\n");
+    const included = await lumine.workspace.open(includedPath);
+    editors.push(included);
+    included.setGrammar(editor.getGrammar());
+    included.setText("EIGE RH $(humidity) + 1\n");
+    await sessionFor(included);
+    const source = '+PROG AQB\n#INCLUDE "humidity.inc"\nEND\n';
+    editor.setText(source);
+    await sessionFor(editor);
+    const main = lumine.packages.getActivePackage("ide-sofistik").mainModule;
+    const parsed = await main.openParsedCode({ target: editor.getElement() });
+    expect(parsed).not.toBeNull();
+    if (parsed) editors.push(parsed);
+    expect(parsed.getPath()).toBeUndefined();
+    expect(parsed.getText()).toContain("EIGE RH 65 + 1\n");
+    expect(parsed.getText()).not.toContain("#INCLUDE");
+    expect(parsed.getGrammar()).toBe(editor.getGrammar());
+    expect(editor.getText()).toBe(source);
+    expect(fs.readFileSync(editor.getPath(), "utf8")).toBe(original);
+    expect(fs.readFileSync(includedPath, "utf8")).toBe("EIGE RH 110\n");
+  });
+
+  it("opens parsed code for an untitled CADINP editor through the hub URI", async () => {
+    lumine.project.setPaths([root]);
+    const editor = await lumine.workspace.open();
+    editors.push(editor);
+    editor.setGrammar(lumine.grammars.grammarForScopeName("source.sofistik"));
+    const source = "#DEFINE humidity=65\n+PROG AQB\nEIGE RH $(humidity)\nEND\n";
+    editor.setText(source);
+    await sessionFor(editor);
+    const main = lumine.packages.getActivePackage("ide-sofistik").mainModule;
+    const parsed = await main.openParsedCode({ target: editor.getElement() });
+    expect(parsed).not.toBeNull();
+    if (parsed) editors.push(parsed);
+    expect(parsed.getPath()).toBeUndefined();
+    expect(parsed.getText()).toContain("EIGE RH 65\n");
+    expect(parsed.getText()).not.toContain("#DEFINE");
+    expect(parsed.getGrammar()).toBe(editor.getGrammar());
+    expect(editor.getText()).toBe(source);
+  });
+
   it("shows server indexing through the shared busy service and clears it on completion", async () => {
     const busyMain = (await lumine.packages.activatePackage("busy-signal")).mainModule;
     const ideMain = lumine.packages.getActivePackage("ide").mainModule;

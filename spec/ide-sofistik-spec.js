@@ -268,11 +268,14 @@ describe("ide-sofistik adapter", () => {
   it("registers its workspace command synchronously and removes it on deactivation", async () => {
     const target = lumine.views.getView(lumine.workspace);
     const names = () => lumine.commands.findCommands({ target }).map(({ name }) => name);
+    expect(names()).toContain("ide-sofistik:open-parsed-code");
     expect(names()).toContain("ide-sofistik:read-calculation-diagnostics");
     await lumine.packages.deactivatePackage("ide-sofistik");
+    expect(names()).not.toContain("ide-sofistik:open-parsed-code");
     expect(names()).not.toContain("ide-sofistik:read-calculation-diagnostics");
     const current = await lumine.packages.activatePackage("ide-sofistik");
     main = current.mainModule;
+    expect(names()).toContain("ide-sofistik:open-parsed-code");
     expect(names()).toContain("ide-sofistik:read-calculation-diagnostics");
   });
 });

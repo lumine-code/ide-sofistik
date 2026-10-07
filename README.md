@@ -10,6 +10,7 @@ SOFiSTiK CADINP language-server adapter.
 - **Project navigation**: supplies document symbols arranged as programs and commands, project symbols, definitions and references through the language-server client.
 - **Directory declarations**: selects the release, language and edition from `sofistik.def` beside each source file.
 - **Contextual enum colors**: colors recognized, unquoted enum values while quoted values keep their string colors.
+- **Parsed code preview**: opens the current preprocessor expansion in a new unsaved CADINP editor.
 - **Calculation diagnostics**: imports an existing calculation log on request and clears imported findings when the source changes.
 - **Bundled server**: ships the git-pinned SOFiSTiK language server and its vocabulary data.
 
@@ -25,6 +26,7 @@ Install `ide` and `language-sofistik`. Add `autocomplete`, `hover`, `linter`, `s
 
 Commands available in `lumine-workspace`:
 
+- `ide-sofistik:open-parsed-code`: open the current preprocessor expansion in a new unsaved CADINP editor,
 - `ide-sofistik:read-calculation-diagnostics`: import existing calculation diagnostics for the saved, unchanged CADINP file.
 
 ## Usage
@@ -34,6 +36,8 @@ Place `sofistik.def` alongside the source files it describes. Each saved file re
 `autocomplete-sofistik`, `linter-sofistik` and `sofistik-environment` are archived and removed from the install catalogue. Uninstall those packages and use `ide-sofistik` with `ide`; keep `autocomplete` and `linter` for the corresponding interfaces. Release, language and edition detection lives in the lightweight `@lumine-code/sofistik-env` library; `sofistik-data` supplies the bundled release fallback. The language grammar continues to own ordinary syntax highlighting and folding, while the language server supplies contextual intelligence through `ide`.
 
 The calculation-diagnostics command reads existing compiler output; it never launches a calculation and does not import or watch logs automatically. Save the source first, then run the command. Static and imported diagnostics appear together in the linter, and editing the source removes the imported findings until they are read again.
+
+Open Parsed Code uses the same in-memory preprocessor expansion as the static linter, including unsaved edits, open include buffers and the source file's adjacent `sofistik.def`. It also accepts untitled CADINP editors. The result opens as a new unsaved editor with the source grammar. An incomplete expansion opens with a warning when input cannot be resolved or an expansion limit is reached. Runtime CADINP expressions, `SYS`, `APPLY` and calculation programs are not executed.
 
 Live static findings select the offending variable, value or record in the original source, including open include buffers. Preprocessor substitutions select their complete use site and link their definitions; reusable blocks select the failing invocation and link the exact body location. Original program headers retain their `noqa` suppression scope without appearing as boilerplate related links. ERR-derived rules follow the selected release and use stable module codes such as `G101`, `SL001` and `AQB001`.
 
@@ -46,7 +50,7 @@ Each feature can be switched off per grammar in the package settings. Turning se
 ## Services
 
 - `ide`: consumed to register and reach the SOFiSTiK language-server sessions.
-- `background-tips.provider`: provided to background-tips to explain manual calculation-diagnostics import.
+- `background-tips.provider`: provided to background-tips to explain parsed code preview and manual calculation-diagnostics import.
 
 ## Contributing
 

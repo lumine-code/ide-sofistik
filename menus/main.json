@@ -7,6 +7,10 @@
           "label": "IDE SOFiSTiK",
           "submenu": [
             {
+              "label": "Open Parsed Code",
+              "command": "ide-sofistik:open-parsed-code"
+            },
+            {
               "label": "Read Calculation Diagnostics",
               "command": "ide-sofistik:read-calculation-diagnostics"
             }
