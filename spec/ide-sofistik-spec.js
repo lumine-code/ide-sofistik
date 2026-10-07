@@ -73,6 +73,15 @@ describe("ide-sofistik adapter", () => {
     expect(main.ide).toBe(replacement);
   });
 
+  it("keeps a replacement edge even when the provider reuses its service object", () => {
+    edges.push(main.consumeIde(service));
+    const current = main.ideAbort;
+    edges[0].dispose();
+    expect(main.ide).toBe(service);
+    expect(main.ideAbort).toBe(current);
+    expect(current.signal.aborted).toBeFalse();
+  });
+
   it("forwards completion and file-reading settings without installation settings", () => {
     lumine.config.set("ide-sofistik.textCase", "lower");
     expect(adapter.getSettings()).toEqual({
