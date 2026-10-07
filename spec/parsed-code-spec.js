@@ -121,13 +121,41 @@ describe("ide-sofistik parsed code", () => {
     expect(lumine.workspace.buildTextEditor).not.toHaveBeenCalled();
     expect(lumine.notifications.addWarning).not.toHaveBeenCalled();
   });
-  it("opens an incomplete expansion and explains the missing input", async () => {
+  it("opens an incomplete expansion when uncertainty metadata is unavailable", async () => {
     result.complete = false;
     expect(await main.openParsedCode()).toBe(parsed);
     expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
       "The SOFiSTiK preprocessor expansion is incomplete.",
       {
-        detail: "Some input could not be resolved or an expansion limit was reached.",
+        detail:
+          "Some input could not be resolved, a directive is unsupported, or an expansion limit was reached.",
+        dismissable: true,
+      },
+    );
+  });
+  it("preserves runtime APPLY input without an incomplete preprocessor warning", async () => {
+    result.complete = false;
+    result.text = '+PROG CSM\nEND\n+apply "[c] main_csm.dat"\n';
+    result.uncertainties = [
+      { kind: "apply", start: result.text.indexOf("+apply"), end: result.text.length },
+    ];
+    expect(await main.openParsedCode()).toBe(parsed);
+    expect(parsed.setText).toHaveBeenCalledWith(result.text);
+    expect(lumine.notifications.addWarning).not.toHaveBeenCalled();
+  });
+  it("warns about incomplete preprocessing alongside runtime APPLY input", async () => {
+    result.complete = false;
+    result.text = '+apply "generated.dat"\n';
+    result.uncertainties = [
+      { kind: "include", start: 0, end: 0 },
+      { kind: "apply", start: 0, end: result.text.length },
+    ];
+    expect(await main.openParsedCode()).toBe(parsed);
+    expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
+      "The SOFiSTiK preprocessor expansion is incomplete.",
+      {
+        detail:
+          "Some input could not be resolved, a directive is unsupported, or an expansion limit was reached.",
         dismissable: true,
       },
     );
