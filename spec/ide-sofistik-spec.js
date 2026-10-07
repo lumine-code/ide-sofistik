@@ -5,7 +5,7 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 
 describe("ide-sofistik adapter", () => {
-  let main, directory, edges, editor, adapter, service, session, resolveServer;
+  let main, directory, edges, editor, adapter, service, resolveServer;
 
   beforeEach(async () => {
     const pkg = await lumine.packages.activatePackage("ide-sofistik");
@@ -19,11 +19,8 @@ describe("ide-sofistik adapter", () => {
       getGrammar: () => ({ scopeName: "source.sofistik" }),
       getPath: () => path.join(directory, "source.dat"),
       getFileState: () => "unmodified",
+      getText: () => "",
       isDestroyed: () => false,
-    };
-    session = {
-      adapter: { id: "ide-sofistik" },
-      request: jasmine.createSpy("request").and.resolveTo({ imported: 1 }),
     };
     service = {
       registerAdapter: jasmine.createSpy("registerAdapter").and.callFake((value) => {
@@ -31,10 +28,16 @@ describe("ide-sofistik adapter", () => {
         return { dispose: jasmine.createSpy("disposeRegistration") };
       }),
       reportMissingServer: jasmine.createSpy("reportMissingServer"),
-      activeSessionsForEditor: jasmine
-        .createSpy("activeSessionsForEditor")
-        .and.resolveTo([session]),
-      featureEnabled: jasmine.createSpy("featureEnabled").and.returnValue(true),
+      requestForDocument: jasmine
+        .createSpy("requestForDocument")
+        .and.callFake(async (target, options) => {
+          if (!options.validate()) return null;
+          return {
+            result: { imported: 1 },
+            document: { uri: pathToFileURL(target.getPath()).href, version: 1 },
+            isCurrent: () => true,
+          };
+        }),
     };
     spyOn(lumine.workspace, "getActiveTextEditor").and.returnValue(editor);
     spyOn(lumine.notifications, "addWarning");
@@ -138,34 +141,32 @@ describe("ide-sofistik adapter", () => {
     expect(main.provideBackgroundTips().tips[0]).toContain("{% else %}");
   });
 
-  it("routes the import command to this adapter rather than the first server", async () => {
-    const other = { adapter: { id: "another-server" }, request: jasmine.createSpy("otherRequest") };
-    service.activeSessionsForEditor.and.resolveTo([other, session]);
-    await main.readCalculationDiagnostics();
-    expect(other.request).not.toHaveBeenCalled();
-    expect(session.request).toHaveBeenCalledOnceWith("workspace/executeCommand", {
+  it("routes import through the synchronized document API and diagnostics switch", async () => {
+    expect(await main.readCalculationDiagnostics()).toEqual({ imported: 1 });
+    const [target, options] = service.requestForDocument.calls.mostRecent().args;
+    expect(target).toBe(editor);
+    expect(options.adapterId).toBe("ide-sofistik");
+    expect(options.feature).toBe("diagnostics");
+    expect(options.method).toBe("workspace/executeCommand");
+    expect(options.params({ uri: "file:///synchronized.dat" })).toEqual({
       command: "sofistik.readCalculationDiagnostics",
-      arguments: [{ uri: pathToFileURL(editor.getPath()).href }],
+      arguments: [{ uri: "file:///synchronized.dat" }],
     });
-    expect(service.featureEnabled).toHaveBeenCalledWith(session.adapter, "diagnostics", editor);
   });
 
-  it("uses the editor that dispatched the command", async () => {
+  it("uses the editor that dispatched the import command", async () => {
     const dispatched = { ...editor, getPath: () => path.join(directory, "clicked.dat") };
     const closest = jasmine.createSpy("closest").and.returnValue({ getModel: () => dispatched });
     await main.readCalculationDiagnostics({ target: { closest } });
     expect(closest).toHaveBeenCalledWith("lumine-text-editor:not([mini])");
-    expect(service.activeSessionsForEditor).toHaveBeenCalledWith(dispatched);
-    expect(session.request.calls.mostRecent().args[1].arguments[0].uri).toBe(
-      pathToFileURL(dispatched.getPath()).href,
-    );
+    expect(service.requestForDocument.calls.mostRecent().args[0]).toBe(dispatched);
   });
 
   it("returns silently with no editor", async () => {
     lumine.workspace.getActiveTextEditor.and.returnValue(null);
     await main.readCalculationDiagnostics();
     expect(lumine.notifications.addWarning).not.toHaveBeenCalled();
-    expect(session.request).not.toHaveBeenCalled();
+    expect(service.requestForDocument).not.toHaveBeenCalled();
   });
 
   for (const [reason, change] of [
@@ -177,48 +178,43 @@ describe("ide-sofistik adapter", () => {
       change();
       await main.readCalculationDiagnostics();
       expect(lumine.notifications.addWarning).toHaveBeenCalledTimes(1);
-      expect(service.activeSessionsForEditor).not.toHaveBeenCalled();
-      expect(session.request).not.toHaveBeenCalled();
+      expect(service.requestForDocument).not.toHaveBeenCalled();
     });
   }
 
-  it("refuses disabled diagnostics and an unavailable server", async () => {
-    service.featureEnabled.and.returnValue(false);
+  it("explains disabled diagnostics and an unavailable server", async () => {
+    service.requestForDocument.and.rejectWith(
+      Object.assign(new Error("disabled"), { code: "IDE_FEATURE_DISABLED" }),
+    );
     await main.readCalculationDiagnostics();
-    expect(session.request).not.toHaveBeenCalled();
     expect(lumine.notifications.addWarning).toHaveBeenCalledTimes(1);
-    service.activeSessionsForEditor.and.resolveTo([]);
+    service.requestForDocument.and.resolveTo(null);
     await main.readCalculationDiagnostics();
     expect(lumine.notifications.addWarning).toHaveBeenCalledTimes(2);
   });
 
-  it("rechecks changes made while waiting for the server", async () => {
-    service.activeSessionsForEditor.and.callFake(async () => {
+  it("revalidates saved-source preconditions after synchronization", async () => {
+    service.requestForDocument.and.callFake(async (_, options) => {
       editor.getFileState = () => "modified";
-      return [session];
+      expect(options.validate()).toBeFalse();
+      return null;
     });
-    await main.readCalculationDiagnostics();
-    expect(session.request).not.toHaveBeenCalled();
+    expect(await main.readCalculationDiagnostics()).toBeNull();
     expect(lumine.notifications.addWarning).toHaveBeenCalledTimes(1);
   });
 
-  it("does not import a replacement path or use a disposed client edge", async () => {
-    service.activeSessionsForEditor.and.callFake(async () => {
-      editor.getPath = () => path.join(directory, "replacement.dat");
-      return [session];
-    });
-    await main.readCalculationDiagnostics();
-    expect(session.request).not.toHaveBeenCalled();
-    service.activeSessionsForEditor.and.callFake(async () => {
+  it("discards results from a disposed service edge", async () => {
+    service.requestForDocument.and.callFake(async (_, options) => {
       edges[0].dispose();
-      return [session];
+      expect(options.signal.aborted).toBeTrue();
+      return { result: { imported: 1 } };
     });
-    await main.readCalculationDiagnostics();
-    expect(session.request).not.toHaveBeenCalled();
+    expect(await main.readCalculationDiagnostics()).toBeNull();
+    expect(lumine.notifications.addWarning).not.toHaveBeenCalled();
   });
 
   it("reports server-side import errors with their reason", async () => {
-    session.request.and.rejectWith(new Error("No calculation log exists"));
+    service.requestForDocument.and.rejectWith(new Error("No calculation log exists"));
     await main.readCalculationDiagnostics();
     expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
       "Unable to read SOFiSTiK calculation diagnostics",
@@ -226,40 +222,21 @@ describe("ide-sofistik adapter", () => {
     );
   });
 
-  it("guards calculation-log import through the real TextEditor buffer before and after saving", async () => {
+  it("guards a real TextEditor before and after saving", async () => {
     await lumine.packages.activatePackage("language-sofistik");
     const filePath = path.join(directory, "actual.dat");
-    const source = "+PROG ASE\nEND\n";
-    fs.writeFileSync(filePath, source);
+    fs.writeFileSync(filePath, "+PROG ASE\nEND\n");
     const actual = await lumine.workspace.open(filePath);
     try {
       actual.setGrammar(lumine.grammars.grammarForScopeName("source.sofistik"));
       const target = lumine.views.getView(actual);
-      expect(actual.isModified).toBeUndefined();
-      expect(actual.getBuffer().isModified).toBeUndefined();
-      expect(actual.getFileState()).toBe("unmodified");
+      expect(await main.readCalculationDiagnostics({ target })).toEqual({ imported: 1 });
+      service.requestForDocument.calls.reset();
+      actual.setText("+PROG ASE\nEND\n$ changed\n");
       await main.readCalculationDiagnostics({ target });
-      expect(service.activeSessionsForEditor).toHaveBeenCalledWith(actual);
-      expect(session.request).toHaveBeenCalledTimes(1);
-
-      session.request.calls.reset();
-      service.activeSessionsForEditor.calls.reset();
-      actual.setText(source + "$ changed\n");
-      expect(actual.getFileState()).toBe("modified");
-      await main.readCalculationDiagnostics({ target });
-      expect(service.activeSessionsForEditor).not.toHaveBeenCalled();
-      expect(session.request).not.toHaveBeenCalled();
-      expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
-        "Save changes to the SOFiSTiK file before reading calculation diagnostics.",
-      );
-
+      expect(service.requestForDocument).not.toHaveBeenCalled();
       await actual.save();
-      expect(actual.getFileState()).toBe("unmodified");
-      await main.readCalculationDiagnostics({ target });
-      expect(session.request).toHaveBeenCalledOnceWith("workspace/executeCommand", {
-        command: "sofistik.readCalculationDiagnostics",
-        arguments: [{ uri: pathToFileURL(filePath).href }],
-      });
+      expect(await main.readCalculationDiagnostics({ target })).toEqual({ imported: 1 });
     } finally {
       actual.destroy();
     }

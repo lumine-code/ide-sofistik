@@ -1,38 +1,36 @@
-const path = require("path");
-const { pathToFileURL } = require("url");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 
 describe("ide-sofistik parsed code", () => {
-  let main, edge, editor, grammar, document, session, service, parsed;
-
+  let main, edge, editor, grammar, document, service, parsed, source, response, result;
   beforeEach(async () => {
     main = (await lumine.packages.activatePackage("ide-sofistik")).mainModule;
     grammar = { scopeName: "source.sofistik" };
+    source = "#DEFINE humidity=65\n+PROG AQB\nEIGE RH $(humidity)\nEND\n";
     editor = {
       getGrammar: () => grammar,
       getPath: () => path.join(__dirname, "model.dat"),
-      getText: () => "#DEFINE humidity=65\n+PROG AQB\nEIGE RH $(humidity)\nEND\n",
+      getText: () => source,
       getFileState: () => "modified",
       isDestroyed: () => false,
     };
-    document = { editor, uri: pathToFileURL(editor.getPath()).href, version: 3 };
-    session = {
-      adapter: { id: "ide-sofistik" },
-      state: "running",
-      documents: new Map([[document.uri, document]]),
-      waitForDocumentSync: jasmine.createSpy("waitForDocumentSync").and.resolveTo(),
-      request: jasmine.createSpy("request").and.callFake(async () => ({
-        uri: document.uri,
-        version: document.version,
-        text: "+PROG AQB\nEIGE RH 65\nEND\n",
-        complete: true,
-        uncertainties: [],
-      })),
+    document = { uri: pathToFileURL(editor.getPath()).href, version: 3, text: source };
+    result = {
+      uri: document.uri,
+      version: 3,
+      text: "+PROG AQB\nEIGE RH 65\nEND\n",
+      complete: true,
+    };
+    response = {
+      document,
+      result,
+      isCurrent: () => source === document.text && document.version === 3,
     };
     service = {
       registerAdapter: () => ({ dispose() {} }),
-      activeSessionsForEditor: jasmine
-        .createSpy("activeSessionsForEditor")
-        .and.resolveTo([session]),
+      requestForDocument: jasmine
+        .createSpy("requestForDocument")
+        .and.callFake(async () => response),
     };
     edge = main.consumeIde(service);
     parsed = {
@@ -45,55 +43,40 @@ describe("ide-sofistik parsed code", () => {
     spyOn(lumine.workspace, "open").and.resolveTo(parsed);
     spyOn(lumine.notifications, "addWarning");
   });
-
   afterEach(async () => {
     edge.dispose();
     await lumine.packages.deactivatePackage("ide-sofistik");
   });
 
-  it("joins document synchronization and opens an unsaved expansion from the correct adapter", async () => {
-    const other = { adapter: { id: "other" }, request: jasmine.createSpy("otherRequest") };
-    service.activeSessionsForEditor.and.resolveTo([other, session]);
-    let synchronized;
-    session.waitForDocumentSync.and.returnValue(
-      new Promise((resolve) => {
-        synchronized = resolve;
-      }),
-    );
-    const opened = main.openParsedCode();
-    await Promise.resolve();
-    expect(session.waitForDocumentSync).toHaveBeenCalledWith(document);
-    expect(session.request).not.toHaveBeenCalled();
-    synchronized();
-    expect(await opened).toBe(parsed);
-    expect(other.request).not.toHaveBeenCalled();
-    expect(session.request).toHaveBeenCalledOnceWith("workspace/executeCommand", {
+  it("requests the synchronized adapter document and opens an unsaved expansion", async () => {
+    expect(await main.openParsedCode()).toBe(parsed);
+    const [target, options] = service.requestForDocument.calls.mostRecent().args;
+    expect(target).toBe(editor);
+    expect(options.adapterId).toBe("ide-sofistik");
+    expect(options.method).toBe("workspace/executeCommand");
+    expect(options.params(document)).toEqual({
       command: "sofistik.expandPreprocessor",
       arguments: [{ uri: document.uri }],
     });
-    expect(parsed.setText).toHaveBeenCalledWith("+PROG AQB\nEIGE RH 65\nEND\n");
+    expect(options.signal.aborted).toBeFalse();
+    expect(parsed.setText).toHaveBeenCalledWith(result.text);
     expect(parsed.setGrammar).toHaveBeenCalledWith(grammar);
-    expect(lumine.workspace.open).toHaveBeenCalledWith(parsed);
     expect(lumine.notifications.addWarning).not.toHaveBeenCalled();
   });
-
   it("uses the hub's untitled URI without requiring a saved source", async () => {
     editor.getPath = () => undefined;
-    document.uri = "untitled:lumine-source.dat";
+    document.uri = result.uri = "untitled:lumine-source.dat";
     expect(await main.openParsedCode()).toBe(parsed);
-    expect(session.request.calls.mostRecent().args[1].arguments).toEqual([
-      { uri: "untitled:lumine-source.dat" },
-    ]);
+    const options = service.requestForDocument.calls.mostRecent().args[1];
+    expect(options.params(document).arguments).toEqual([{ uri: document.uri }]);
   });
-
   it("uses the editor that dispatched the command", async () => {
     lumine.workspace.getActiveTextEditor.and.returnValue(null);
     const closest = jasmine.createSpy("closest").and.returnValue({ getModel: () => editor });
     expect(await main.openParsedCode({ target: { closest } })).toBe(parsed);
     expect(closest).toHaveBeenCalledWith("lumine-text-editor:not([mini])");
-    expect(service.activeSessionsForEditor).toHaveBeenCalledWith(editor);
+    expect(service.requestForDocument.calls.mostRecent().args[0]).toBe(editor);
   });
-
   it("returns quietly without a surface and explains a wrong grammar", async () => {
     lumine.workspace.getActiveTextEditor.and.returnValue(null);
     expect(await main.openParsedCode()).toBeNull();
@@ -102,11 +85,10 @@ describe("ide-sofistik parsed code", () => {
     grammar = { scopeName: "source.python" };
     expect(await main.openParsedCode()).toBeNull();
     expect(lumine.notifications.addWarning).toHaveBeenCalledTimes(1);
-    expect(service.activeSessionsForEditor).not.toHaveBeenCalled();
+    expect(service.requestForDocument).not.toHaveBeenCalled();
   });
-
-  it("explains missing IDE service and server", async () => {
-    service.activeSessionsForEditor.and.resolveTo([]);
+  it("explains a missing IDE service or server", async () => {
+    service.requestForDocument.and.resolveTo(null);
     expect(await main.openParsedCode()).toBeNull();
     expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
       "The SOFiSTiK language server is unavailable.",
@@ -116,58 +98,32 @@ describe("ide-sofistik parsed code", () => {
     expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
       "Enable ide to open SOFiSTiK parsed code.",
     );
-    expect(lumine.workspace.buildTextEditor).not.toHaveBeenCalled();
   });
-
-  it("refuses source changes while the server starts", async () => {
-    service.activeSessionsForEditor.and.callFake(async () => {
-      editor.getText = () => "+PROG ASE\nEND\n";
-      return [session];
-    });
-    expect(await main.openParsedCode()).toBeNull();
-    expect(session.request).not.toHaveBeenCalled();
-    expect(lumine.notifications.addWarning).toHaveBeenCalledTimes(1);
-  });
-
-  it("refuses a newer document generation even if its text was restored", async () => {
-    session.request.and.callFake(async () => {
-      const result = { uri: document.uri, version: document.version, text: "old", complete: true };
-      document.version++;
-      return result;
-    });
-    expect(await main.openParsedCode()).toBeNull();
-    expect(lumine.workspace.buildTextEditor).not.toHaveBeenCalled();
-    expect(lumine.notifications.addWarning).toHaveBeenCalledTimes(1);
-  });
-
-  for (const invalid of [{ uri: "untitled:another.dat", version: 3 }, { version: 2 }]) {
+  for (const invalid of [{ uri: "untitled:another.dat" }, { version: 2 }]) {
     it(`refuses a response for the wrong ${invalid.uri ? "document" : "version"}`, async () => {
-      session.request.and.resolveTo({ uri: document.uri, text: "old", ...invalid });
+      Object.assign(result, invalid);
       expect(await main.openParsedCode()).toBeNull();
       expect(lumine.workspace.buildTextEditor).not.toHaveBeenCalled();
     });
   }
-
-  it("does not open a result through a disposed service edge", async () => {
-    session.request.and.callFake(async () => {
+  it("refuses a response that the hub marks stale", async () => {
+    response.isCurrent = () => false;
+    expect(await main.openParsedCode()).toBeNull();
+    expect(lumine.workspace.buildTextEditor).not.toHaveBeenCalled();
+  });
+  it("cancels requests when their consumed service edge disappears", async () => {
+    service.requestForDocument.and.callFake(async (_, options) => {
       edge.dispose();
-      return { uri: document.uri, version: document.version, text: "old" };
+      expect(options.signal.aborted).toBeTrue();
+      return response;
     });
     expect(await main.openParsedCode()).toBeNull();
     expect(lumine.workspace.buildTextEditor).not.toHaveBeenCalled();
     expect(lumine.notifications.addWarning).not.toHaveBeenCalled();
   });
-
-  it("opens an incomplete expansion unchanged and explains the missing input", async () => {
-    session.request.and.resolveTo({
-      uri: document.uri,
-      version: document.version,
-      text: "+PROG AQB\nEIGE RH $(missing)\nEND\n",
-      complete: false,
-      uncertainties: [{ start: 10, end: 28, kind: "macro" }],
-    });
+  it("opens an incomplete expansion and explains the missing input", async () => {
+    result.complete = false;
     expect(await main.openParsedCode()).toBe(parsed);
-    expect(parsed.setText).toHaveBeenCalledWith("+PROG AQB\nEIGE RH $(missing)\nEND\n");
     expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
       "The SOFiSTiK preprocessor expansion is incomplete.",
       {
@@ -176,20 +132,27 @@ describe("ide-sofistik parsed code", () => {
       },
     );
   });
-
+  it("reports a stale source rejected by the hub", async () => {
+    service.requestForDocument.and.rejectWith(
+      Object.assign(new Error("changed"), { code: "IDE_DOCUMENT_CHANGED" }),
+    );
+    expect(await main.openParsedCode()).toBeNull();
+    expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
+      "The SOFiSTiK source changed while its parsed code was being prepared.",
+    );
+  });
   it("reports a server error without opening an editor", async () => {
-    session.request.and.rejectWith(new Error("Document changed during analysis."));
+    service.requestForDocument.and.rejectWith(new Error("Expansion failed."));
     expect(await main.openParsedCode()).toBeNull();
     expect(lumine.workspace.buildTextEditor).not.toHaveBeenCalled();
     expect(lumine.notifications.addWarning).toHaveBeenCalledWith(
       "Unable to open SOFiSTiK parsed code",
-      { detail: "Document changed during analysis.", dismissable: true },
+      { detail: "Expansion failed.", dismissable: true },
     );
   });
-
-  it("destroys the new editor if the source changes while it opens", async () => {
+  it("destroys the new editor if its source changes while it opens", async () => {
     lumine.workspace.open.and.callFake(async () => {
-      editor.getText = () => "changed";
+      source = "changed";
       return parsed;
     });
     expect(await main.openParsedCode()).toBeNull();
