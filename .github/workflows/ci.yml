@@ -62,8 +62,15 @@ jobs:
           cache-dependency-path: lumine/package-lock.json
       - name: Install Linux build and headless-display dependencies
         run: |
-          sudo apt-get update || true
-          sudo apt-get install -y xvfb libx11-dev libxkbfile-dev libsecret-1-dev
+          # The Azure HTTP mirror can stall before any integration specs run.
+          for apt_source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            if [ -f "$apt_source" ]; then
+              sudo sed -i -E 's|https?://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$apt_source"
+            fi
+          done
+          apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          sudo apt-get "${apt_options[@]}" update || true
+          sudo apt-get "${apt_options[@]}" install -y xvfb libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Use HTTPS for GitHub dependencies
         run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - name: Install package dependencies
