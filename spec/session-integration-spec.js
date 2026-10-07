@@ -178,6 +178,67 @@ describe("ide-sofistik IDE sessions", () => {
     expect(editor.getText()).toBe(source);
   });
 
+  it("scrolls a long parsed expansion inside the unsaved editor's viewport", async () => {
+    lumine.project.setPaths([root]);
+    const workspaceElement = lumine.views.getView(lumine.workspace);
+    const originalStyle = workspaceElement.style.cssText;
+    workspaceElement.style.width = "800px";
+    workspaceElement.style.height = "360px";
+    jasmine.attachToDOM(workspaceElement);
+    const waitForLayout = (editor) =>
+      until(() => {
+        // Flush the pane mount and editor measurements even when the test
+        // window is occluded and animation frames are paused.
+        lumine.views.performDocumentUpdate();
+        const element = editor.getElement();
+        const component = element.component;
+        const client = component.refs.clientContainer;
+        return (
+          element.isConnected &&
+          component.hasInitialMeasurements &&
+          client.offsetHeight > 0 &&
+          component.getClientContainerHeight() === client.offsetHeight
+        );
+      }, "parsed editor layout");
+
+    try {
+      const editor = await lumine.workspace.open();
+      editors.push(editor);
+      editor.setGrammar(lumine.grammars.grammarForScopeName("source.sofistik"));
+      const source =
+        "#DEFINE humidity=65\n+PROG AQB\n" + "EIGE RH $(humidity)\n".repeat(250) + "END\n";
+      editor.setText(source);
+      await sessionFor(editor);
+      await waitForLayout(editor);
+      const sourceViewportHeight = editor.getElement().getBoundingClientRect().height;
+
+      const main = lumine.packages.getActivePackage("ide-sofistik").mainModule;
+      const parsed = await main.openParsedCode({ target: editor.getElement() });
+      expect(parsed).not.toBeNull();
+      if (!parsed) return;
+      editors.push(parsed);
+      parsed.update({ smoothScrolling: false });
+      await waitForLayout(parsed);
+      const element = parsed.getElement();
+      const component = element.component;
+      expect(parsed.getPath()).toBeUndefined();
+      expect(parsed.getText()).toContain("EIGE RH 65\n".repeat(250));
+      expect(element.getBoundingClientRect().height).toBeCloseTo(sourceViewportHeight, 0);
+      expect(component.getScrollContainerClientHeight()).toBeLessThan(component.getContentHeight());
+      expect(component.getMaxScrollTop()).toBeGreaterThan(0);
+
+      const initialScrollTop = element.getScrollTop();
+      element.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: 120, bubbles: true, cancelable: true }),
+      );
+      expect(element.getScrollTop()).toBeGreaterThan(initialScrollTop);
+      expect(component.renderedScrollTop).toBeGreaterThan(initialScrollTop);
+      expect(editor.getText()).toBe(source);
+    } finally {
+      workspaceElement.style.cssText = originalStyle;
+    }
+  });
+
   it("shows server indexing through the shared busy service and clears it on completion", async () => {
     const busyMain = (await lumine.packages.activatePackage("busy-signal")).mainModule;
     const ideMain = lumine.packages.getActivePackage("ide").mainModule;
