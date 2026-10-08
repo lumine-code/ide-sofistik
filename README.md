@@ -37,6 +37,8 @@ Place `sofistik.def` alongside the source files it describes. Each saved file re
 
 The calculation-diagnostics command reads existing compiler output; it never launches a calculation and does not import or watch logs automatically. Save the source first, then run the command. Static and imported diagnostics appear together in the linter, and editing the source removes the imported findings until they are read again.
 
+Static checks start after a 100 ms pause in typing. Existing diagnostic markers remain visible until the server has a complete current result, including contributions from shared include files. Opening or saving starts analysis immediately; completion and navigation remain available during analysis.
+
 Open Parsed Code uses the same analysis snapshot as static diagnostics, including unsaved edits, open include buffers and the source file's adjacent `sofistik.def`. It also accepts untitled CADINP editors. The IDE hub synchronizes the document and rejects stale results; the adapter opens a new unsaved editor with the source grammar. An incomplete expansion opens with a warning when input cannot be resolved or an expansion limit is reached. Runtime CADINP expressions, `SYS`, `APPLY` and calculation programs are not executed.
 
 Live static findings select the offending variable, value or record in the original source, including open include buffers. Preprocessor substitutions select their complete use site and link their definitions; reusable blocks select the failing invocation and link the exact body location. Original program headers retain their `noqa` suppression scope without appearing as boilerplate related links. ERR-derived rules follow the selected release and use stable module codes such as `G101`, `SL001` and `AQB001`.
