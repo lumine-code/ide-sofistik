@@ -190,6 +190,32 @@ describe("ide-sofistik bundled CADINP linter", () => {
     expect(client.stderr).toBe("");
   });
 
+  it("checks inline generator increments and closing parentheses through the bundled server", async () => {
+    client.open(
+      uri,
+      "+PROG SOFILOAD\nLC (1 11 1) TITL (101 111 1)\nLC (1 11) TITL (101 111\nLC (1 11)\nEND\n",
+    );
+    const initial = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    const findings = initial.items.filter((item) => item.source === "sofistik-linter");
+    expect(findings.some(({ code, range }) => code === "G311" && range.start.line === 1)).toBe(
+      true,
+    );
+    expect(findings.some(({ code, range }) => code === "G312" && range.start.line === 2)).toBe(
+      true,
+    );
+    expect(findings.some(({ code, range }) => code === "G311" && range.start.line === 3)).toBe(
+      true,
+    );
+    client.change(
+      uri,
+      "+PROG SOFILOAD\nLC (1 11 1) TITL (101 111)\nLC (1 11) TITL (101 111 1)\nLC (1 11 1)\nEND\n",
+      2,
+    );
+    const corrected = await client.request("textDocument/diagnostic", { textDocument: { uri } });
+    expect(corrected.items.filter((item) => item.source === "sofistik-linter")).toEqual([]);
+    expect(client.stderr).toBe("");
+  });
+
   it("uses bundled native prefixes to distinguish numeric factors from textual names", async () => {
     client.open(uri, "+PROG SOFIMSHC\nGAX ID axis TYPE AXIS\nGAXV NAME 1.00.0 VAL 1\nEND\n");
     const named = await client.request("textDocument/diagnostic", { textDocument: { uri } });
