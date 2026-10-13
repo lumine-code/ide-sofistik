@@ -1,0 +1,16 @@
+{
+  "title": "ide-sofistik",
+  "description": "SOFiSTiK diagnostics locate a malformed numeric coordinate in CADINP.",
+  "recordedOn": "2026-10-13",
+  "sourceRevision": "4db6751f200f4e32e0f095a43de3e25491e549ee",
+  "mode": "normal",
+  "fontSettings": "default",
+  "images": [
+    {
+      "file": "demo.png",
+      "label": "SOFiSTiK diagnostics locate a malformed numeric coordinate in CADINP.",
+      "width": 1100,
+      "height": 490
+    }
+  ]
+}

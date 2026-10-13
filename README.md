@@ -14,6 +14,8 @@ SOFiSTiK CADINP language-server adapter.
 - **Calculation diagnostics**: imports an existing calculation log on request and clears imported findings when the source changes.
 - **Bundled server**: ships the git-pinned SOFiSTiK language server and its vocabulary data.
 
+![SOFiSTiK diagnostics locate a malformed numeric coordinate in CADINP.](.github/demo.png)
+
 ## Installation
 
 To install `ide-sofistik` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/ide-sofistik~master`.
