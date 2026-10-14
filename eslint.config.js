@@ -6,7 +6,7 @@ const prettier = require("eslint-config-prettier");
 const runtimeModules = ["lumine"];
 
 module.exports = [
-  { ignores: ["node_modules/**"] },
+  { ignores: ["node_modules/**", "demo/**"] },
   js.configs.recommended,
   n.configs["flat/recommended-script"],
   {
