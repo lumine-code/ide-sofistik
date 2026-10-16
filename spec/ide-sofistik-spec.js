@@ -50,7 +50,13 @@ describe("ide-sofistik adapter", () => {
       lumine.config.unset(`ide-sofistik.${key}`);
     await lumine.packages.deactivatePackage("ide-sofistik");
     await lumine.fileWatchClient.settlePendingTeardown();
-    fs.rmSync(directory, { recursive: true, force: true });
+    const target = path.resolve(directory);
+    if (
+      !target.startsWith(path.resolve(os.tmpdir()) + path.sep) ||
+      !path.basename(target).startsWith("ide-sofistik-spec-")
+    )
+      throw new Error("Unexpected test cleanup directory");
+    fs.rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it("registers the project-root adapter and disposes only its service edge", () => {
@@ -259,6 +265,8 @@ describe("ide-sofistik adapter", () => {
       lumine.commands.canDispatch(lumine.workspace.getElement(), "ide-sofistik:open-parsed-code"),
     ).toBe(false);
     const names = () => lumine.commands.findCommands({ target }).map(({ name }) => name);
+    expect(names()).not.toContain("ide-sofistik:open-parsed-code");
+    target.setAttribute("data-grammar", "source sofistik");
     expect(names()).toContain("ide-sofistik:open-parsed-code");
     expect(names()).toContain("ide-sofistik:read-calculation-diagnostics");
     await lumine.packages.deactivatePackage("ide-sofistik");
