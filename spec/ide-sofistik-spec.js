@@ -251,8 +251,13 @@ describe("ide-sofistik adapter", () => {
     }
   });
 
-  it("registers its workspace command synchronously and removes it on deactivation", async () => {
-    const target = lumine.views.getView(lumine.workspace);
+  it("registers its editor commands synchronously and removes them on deactivation", async () => {
+    const editor = lumine.workspace.buildTextEditor();
+    const target = editor.element;
+    jasmine.attachToDOM(target);
+    expect(
+      lumine.commands.canDispatch(lumine.workspace.getElement(), "ide-sofistik:open-parsed-code"),
+    ).toBe(false);
     const names = () => lumine.commands.findCommands({ target }).map(({ name }) => name);
     expect(names()).toContain("ide-sofistik:open-parsed-code");
     expect(names()).toContain("ide-sofistik:read-calculation-diagnostics");
@@ -263,6 +268,7 @@ describe("ide-sofistik adapter", () => {
     main = current.mainModule;
     expect(names()).toContain("ide-sofistik:open-parsed-code");
     expect(names()).toContain("ide-sofistik:read-calculation-diagnostics");
+    editor.destroy();
   });
 });
 

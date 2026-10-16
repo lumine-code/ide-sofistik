@@ -26,7 +26,7 @@ Install `ide` and `language-sofistik`. Add `autocomplete`, `hover`, `linter`, `s
 
 ## Commands
 
-Commands available in `lumine-workspace`:
+Commands available in `lumine-text-editor:not([mini])`:
 
 - `ide-sofistik:open-parsed-code`: open the current preprocessor expansion in a new unsaved CADINP editor,
 - `ide-sofistik:read-calculation-diagnostics`: import existing calculation diagnostics for the saved, unchanged CADINP file.
