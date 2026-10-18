@@ -56,7 +56,7 @@ describe("ide-sofistik adapter", () => {
       !path.basename(target).startsWith("ide-sofistik-spec-")
     )
       throw new Error("Unexpected test cleanup directory");
-    fs.rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    await fs.promises.rm(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it("registers the project-root adapter and disposes only its service edge", () => {
