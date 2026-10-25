@@ -7,5 +7,5 @@ module.exports = {
   proseWrap: "never",
   bracketSpacing: true,
   arrowParens: "always",
-  endOfLine: "auto",
+  endOfLine: "lf",
 };
