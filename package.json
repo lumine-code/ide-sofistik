@@ -178,7 +178,7 @@
     }
   },
   "dependencies": {
-    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#7d7847c28f7f3b36d32741ee925047e0c856176d"
+    "@lumine-code/sofistik-language-server": "github:lumine-code/sofistik-language-server#2359a1dbfeb64ef083160a071a02f2f34b0ee0e4"
   },
   "overrides": {
     "eslint@^10.15.0": {
