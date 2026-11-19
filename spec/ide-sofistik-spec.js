@@ -16,6 +16,7 @@ describe("ide-sofistik adapter", () => {
     directory = fs.mkdtempSync(path.join(os.tmpdir(), "ide-sofistik-spec-"));
     edges = [];
     editor = {
+      getBuffer: () => null,
       getGrammar: () => ({ scopeName: "source.sofistik" }),
       getPath: () => path.join(directory, "source.dat"),
       getFileState: () => "unmodified",
@@ -59,11 +60,11 @@ describe("ide-sofistik adapter", () => {
     await fs.promises.rm(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
-  it("registers the project-root adapter and disposes only its service edge", () => {
+  it("registers the file-directory adapter and disposes only its service edge", () => {
     expect(adapter.id).toBe("ide-sofistik");
     expect(adapter.grammarScopes).toEqual(["source.sofistik"]);
     expect(adapter.languageId).toBe("sofistik");
-    expect(adapter.sessionScope).toBe("project-root");
+    expect(adapter.sessionScope).toBe("file-directory");
     expect(adapter.restartKeyPaths).toEqual(["ide-sofistik.serverPath"]);
     expect(adapter.settingsKeyPaths).toEqual(["ide-sofistik"]);
     const registration = service.registerAdapter.calls.mostRecent().returnValue;

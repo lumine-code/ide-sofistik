@@ -8,6 +8,7 @@ describe("ide-sofistik parsed code", () => {
     grammar = { scopeName: "source.sofistik" };
     source = "#DEFINE humidity=65\n+PROG AQB\nEIGE RH $(humidity)\nEND\n";
     editor = {
+      getBuffer: () => null,
       getGrammar: () => grammar,
       getPath: () => path.join(__dirname, "model.dat"),
       getText: () => source,

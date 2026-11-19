@@ -44,6 +44,9 @@ describe("ide-sofistik bundled language server", () => {
   });
 
   it("reports completed indexing from the default git-pinned server launch", async () => {
+    const archive = path.join(directory, "archive");
+    fs.mkdirSync(archive);
+    fs.writeFileSync(path.join(archive, "archived.dat"), SOURCE);
     await client.start();
     expect(client.child.spawnargs).toContain(
       require.resolve("@lumine-code/sofistik-language-server/bin/cli.js"),
@@ -459,7 +462,7 @@ describe("ide-sofistik bundled language server", () => {
     expect(client.child.pid).toBe(pid);
   });
 
-  it("refreshes nested definitions without applying parent definitions to sibling files", async () => {
+  it("watches adjacent definitions in the session directory without inheriting the parent definition", async () => {
     fs.writeFileSync(
       path.join(directory, "sofistik.def"),
       "SOF_VERSION = 1999\nSOF_LANGUAGE = DE\n",
@@ -474,20 +477,21 @@ describe("ide-sofistik bundled language server", () => {
     const secondUri = fileUri(path.join(second, "main.dat"));
     fs.writeFileSync(definitionPath, "SOF_VERSION = 2026\nSOF_LANGUAGE = EN\n");
     fs.writeFileSync(path.join(second, "sofistik.def"), "SOF_VERSION = 2026\nSOF_LANGUAGE = EN\n");
+    client = new LiveLspClient(adapter, first);
     await client.start();
     await client.waitFor(
       () => client.registrations.some(({ method }) => method === "workspace/didChangeWatchedFiles"),
-      "recursive file watcher registration",
+      "directory watcher registration",
     );
     const registration = client.registrations.find(
       ({ method }) => method === "workspace/didChangeWatchedFiles",
     );
-    expect(
-      registration.registerOptions.watchers.some(
-        ({ globPattern }) =>
-          globPattern.pattern?.startsWith("**/") && globPattern.pattern.includes("def"),
-      ),
-    ).toBe(true);
+    expect(registration.registerOptions.watchers).toEqual([
+      {
+        globPattern: { baseUri: fileUri(first), pattern: "*.{dat,gra,grb,results,def,inc}" },
+        kind: 7,
+      },
+    ]);
     client.open(firstUri, SOURCE);
     client.open(secondUri, SOURCE);
     await client.request("textDocument/diagnostic", { textDocument: { uri: firstUri } });

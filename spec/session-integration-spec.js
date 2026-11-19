@@ -47,10 +47,10 @@ describe("ide-sofistik IDE sessions", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  const open = async (project, version) => {
+  const open = async (project, version, filename = "main.dat") => {
     fs.mkdirSync(project, { recursive: true });
     fs.writeFileSync(path.join(project, "sofistik.def"), `SOF_VERSION = ${version}\n`);
-    const filePath = path.join(project, "main.dat");
+    const filePath = path.join(project, filename);
     fs.writeFileSync(filePath, "+PROG ASE\nGRP NO 1 VAL FULL\nEND\n");
     const editor = await lumine.workspace.open(filePath);
     editor.setGrammar(lumine.grammars.grammarForScopeName("source.sofistik"));
@@ -178,6 +178,46 @@ describe("ide-sofistik IDE sessions", () => {
     expect(editor.getText()).toBe(source);
   });
 
+  it("expands and watches an explicit include outside the source directory", async () => {
+    lumine.project.setPaths([root]);
+    const sourceDirectory = path.join(root, "sources");
+    const editor = await open(sourceDirectory, "2026");
+    const includeDirectory = path.join(root, "[includes]");
+    fs.mkdirSync(includeDirectory);
+    const includePath = path.join(includeDirectory, "humidity.inc");
+    fs.writeFileSync(includePath, "EIGE RH 65\n");
+    editor.setText('+PROG AQB\n#INCLUDE "../[includes]/humidity.inc"\nEND\n');
+    const session = await sessionFor(editor);
+    expect(session.rootPath).toBe(sourceDirectory);
+    const expand = () =>
+      session.request("workspace/executeCommand", {
+        command: "sofistik.expandPreprocessor",
+        arguments: [{ uri: pathToFileURL(editor.getPath()).href }],
+      });
+    const result = await expand();
+    expect(result.complete).toBe(true);
+    expect(result.text).toContain("EIGE RH 65\n");
+
+    await until(() => {
+      const { manager } = session;
+      const registrations = manager.dynamicCapabilities.get(session);
+      return [...(registrations?.values() || [])].some(
+        ({ method, registerOptions }) =>
+          method === "workspace/didChangeWatchedFiles" &&
+          registerOptions.watchers.some(({ globPattern }) =>
+            manager.globMatches(globPattern, includePath),
+          ),
+      );
+    }, "external include watch");
+    await lumine.project.getWatcherPromise(root);
+    fs.writeFileSync(includePath, "EIGE RH 70\n");
+    const updated = await until(async () => {
+      const expansion = await expand();
+      return expansion.text.includes("EIGE RH 70\n") ? expansion : null;
+    }, "updated external include expansion");
+    expect(updated.complete).toBe(true);
+  });
+
   it("scrolls a long parsed expansion inside the unsaved editor's viewport", async () => {
     lumine.project.setPaths([root]);
     const workspaceElement = lumine.views.getView(lumine.workspace);
@@ -269,31 +309,29 @@ describe("ide-sofistik IDE sessions", () => {
     }
   });
 
-  it("routes two project roots to separate server sessions", async () => {
-    const firstRoot = path.join(root, "first");
-    const secondRoot = path.join(root, "second");
-    fs.mkdirSync(firstRoot);
-    fs.mkdirSync(secondRoot);
-    lumine.project.setPaths([firstRoot, secondRoot]);
-    const first = await open(firstRoot, "2026");
-    const second = await open(secondRoot, "2025");
-    const firstSession = await sessionFor(first);
-    const secondSession = await sessionFor(second);
-    expect(firstSession).not.toBe(secondSession);
-    expect(firstSession.rootPath).toBe(firstRoot);
-    expect(secondSession.rootPath).toBe(secondRoot);
-    expect(service.adaptersForEditor(first).map(({ id }) => id)).toContain("ide-sofistik");
-  });
-
-  it("shares a workspace session while retaining each source directory's release", async () => {
+  it("shares the same server session between files in one directory", async () => {
     lumine.project.setPaths([root]);
-    fs.writeFileSync(path.join(root, "sofistik.def"), "SOF_VERSION = 1998\n");
-    const first = await open(path.join(root, "first"), "2026");
-    const second = await open(path.join(root, "second"), "1999");
+    const directory = path.join(root, "sources");
+    const first = await open(directory, "2026");
+    const second = await open(directory, "2026", "secondary.dat");
     const firstSession = await sessionFor(first);
     const secondSession = await sessionFor(second);
     expect(firstSession).toBe(secondSession);
-    expect(firstSession.rootPath).toBe(root);
+    expect(firstSession.rootPath).toBe(directory);
+  });
+
+  it("starts separate sessions for source directories within one Lumine project", async () => {
+    lumine.project.setPaths([root]);
+    fs.writeFileSync(path.join(root, "sofistik.def"), "SOF_VERSION = 1998\n");
+    const firstDirectory = path.join(root, "[a] first");
+    const secondDirectory = path.join(root, "[b] second");
+    const first = await open(firstDirectory, "2026");
+    const second = await open(secondDirectory, "1999");
+    const firstSession = await sessionFor(first);
+    const secondSession = await sessionFor(second);
+    expect(firstSession).not.toBe(secondSession);
+    expect(firstSession.rootPath).toBe(firstDirectory);
+    expect(secondSession.rootPath).toBe(secondDirectory);
     const firstUri = pathToFileURL(first.getPath()).href;
     const secondUri = pathToFileURL(second.getPath()).href;
     const firstTokens = await firstSession.request("textDocument/semanticTokens/full", {
